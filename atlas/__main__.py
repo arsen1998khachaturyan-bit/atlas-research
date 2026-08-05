@@ -5,36 +5,8 @@ import subprocess
 import sys
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="atlas",
-        description="Atlas Research Framework",
-    )
-
-    subparsers = parser.add_subparsers(
-        dest="command",
-        required=True,
-    )
-
-    subparsers.add_parser(
-        "status",
-        help="Show framework status.",
-    )
-
-    subparsers.add_parser(
-        "smoke",
-        help="Run the quick smoke benchmark.",
-    )
-
-    subparsers.add_parser(
-        "test",
-        help="Run the test suite.",
-    )
-
-    return parser
-
-
 def run_module(module_name: str) -> int:
+    """Run a Python module using the current interpreter."""
     completed = subprocess.run(
         [sys.executable, "-m", module_name],
         check=False,
@@ -43,6 +15,7 @@ def run_module(module_name: str) -> int:
 
 
 def run_tests() -> int:
+    """Run the Atlas test suite."""
     completed = subprocess.run(
         [sys.executable, "-m", "pytest", "-q"],
         check=False,
@@ -50,23 +23,67 @@ def run_tests() -> int:
     return completed.returncode
 
 
+def show_status() -> int:
+    print("=" * 52)
+    print("Atlas Research Framework v2")
+    print("=" * 52)
+    print("Status: READY")
+    print("Branch: framework-v2")
+    print()
+    print("Available commands:")
+    print("  python -m atlas status")
+    print("  python -m atlas test")
+    print("  python -m atlas smoke")
+    print("  python -m atlas benchmark")
+    print("  python -m atlas plot")
+    print("=" * 52)
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="atlas",
+        description=(
+            "Atlas Research Framework for query-efficient "
+            "symbolic program extraction."
+        ),
+    )
+
+    parser.add_argument(
+        "command",
+        nargs="?",
+        default="status",
+        choices=[
+            "status",
+            "test",
+            "smoke",
+            "benchmark",
+            "plot",
+        ],
+        help="Command to execute.",
+    )
+
+    return parser
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
     if args.command == "status":
-        print("=" * 50)
-        print("Atlas Research Framework v2")
-        print("=" * 50)
-        print("Status: READY")
-        print("Branch: framework-v2")
-        return 0
+        return show_status()
+
+    if args.command == "test":
+        return run_tests()
 
     if args.command == "smoke":
         return run_module("experiments.run_smoke")
 
-    if args.command == "test":
-        return run_tests()
+    if args.command == "benchmark":
+        return run_module("experiments.run_multiseed_validation")
+
+    if args.command == "plot":
+        return run_module("experiments.plot_smoke")
 
     parser.error(f"Unknown command: {args.command}")
     return 2

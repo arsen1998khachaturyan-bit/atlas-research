@@ -19,5 +19,7 @@ def fidelity(
     task_index: int,
 ) -> float:
     return float(
-        np.mean(outputs[recovered_index] == outputs[task_index])
+        np.mean(
+            outputs[recovered_index] == outputs[task_index]
+        )
     )

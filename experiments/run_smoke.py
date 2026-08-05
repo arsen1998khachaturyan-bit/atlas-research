@@ -1,4 +1,8 @@
-from atlas.benchmarks.runner import run_multiseed_validation, save_json
+from atlas.benchmarks.runner import (
+    run_multiseed_validation,
+    save_json,
+)
+from atlas.reporting import format_validation_report
 
 
 def main() -> None:
@@ -8,8 +12,11 @@ def main() -> None:
         tasks_per_seed=5,
         seeds=(101,),
     )
+
     save_json(payload, "results/smoke_results.json")
-    print(payload)
+
+    report = format_validation_report(payload)
+    print(report)
 
 
 if __name__ == "__main__":
