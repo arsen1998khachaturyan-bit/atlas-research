@@ -174,8 +174,11 @@ it required creating a new module rather than modifying Track A, per the
 
 See `docs/RESEARCH_LOG.md` for the experiment-by-experiment log and
 `docs/BEST_RESULTS.md` / `docs/NEXT_RESEARCH_DECISION.md` for verified
-results and next steps, which are written after Stage A (synthetic-matrix)
-experiments are implemented and run in this same session.
+results and next steps. As of this update, both Stage A (synthetic
+matrices) and Stage B (trained-vs-random-init small MLP, `atlas_nn/stage_b/`)
+have been implemented and run; `torch` (CPU) was added as the
+`stage_b` optional dependency (`pip install -e ".[stage_b]"`) specifically
+for Stage B — Stage A remains numpy-only.
 
 ### Design constraints adopted for Track B
 

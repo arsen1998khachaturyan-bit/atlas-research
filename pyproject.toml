@@ -16,6 +16,14 @@ dependencies = [
 dev = [
     "pytest>=8.0",
 ]
+# Only needed for atlas_nn Stage B+ (trained-network experiments). Track A
+# and atlas_nn Stage A (synthetic matrices) need only numpy. Prefer
+# installing from the CPU-only index to avoid pulling CUDA packages on
+# machines without a GPU, e.g.:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+stage_b = [
+    "torch>=2.0",
+]
 
 [tool.setuptools.packages.find]
 include = ["atlas*"]

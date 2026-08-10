@@ -68,6 +68,41 @@ here, not hidden, per the mission's instruction to report negative results.
 
 ---
 
+## VERIFIED RESULT: trained networks are far more behaviorally robust to weight-compression error than randomly initialized networks at the same architecture
+
+**Claim.** On a 3-layer MLP (32→64→64→2) trained on a synthetic XOR task
+(`atlas_nn.stage_b`), compressing the 64×64 hidden layer's weight matrix and
+substituting the reconstruction back into the network produces output-logit
+error that is **3–11× smaller than the weight-tensor error would suggest**,
+consistently across every compression method tested (SVD, block-dictionary,
+quantization, pruning) — but only for the *trained* network. For the same
+architecture at random initialization, weight error and output error track
+each other almost 1:1 for every method (ratio ≈1).
+
+Concrete numbers (mean of 3 seeds, `svd_rank4` on the 64×64 layer):
+random-init tensor rel_l2 0.891 → output rel_logit 0.928 (ratio ≈1.0);
+trained tensor rel_l2 0.414 → output rel_logit **0.039** (ratio ≈0.09, an
+11× reduction).
+
+**How verified.** Reproduced across 3 independent training seeds (11, 22,
+33), for 4 different compression methods, on 3 different weight matrices —
+the direction of the effect (trained ratio ≪ random-init ratio) held in
+every method/layer combination where the layer was large enough for
+overhead not to dominate (see the small-layer caveat below). Reproduce with
+`python -m experiments.run_atlas_nn_stage_b` (writes
+`results/atlas_nn_stage_b.json`) or `pytest tests/test_atlas_nn_stage_b.py`.
+
+**Scope of the claim.** This is evidence that training adds *behavioral*
+redundancy/robustness — not a demonstration that any specific Atlas
+structural method becomes better at literally compressing the trained
+tensor (the block-dictionary method's own tensor-level error was flat
+between random-init and trained; only SVD showed a real tensor-level
+compressibility gain, and only on one of the three layers). One synthetic
+task, one small architecture, three seeds — not yet tested on a real
+dataset or a larger network (mission Stage C).
+
+---
+
 ## OBSERVATION: k-means dictionary fitting is not perfectly reliable at small dictionary sizes
 
 On `block_repeated` with `dict_size=8` (only 4 true unique blocks exist),
@@ -82,12 +117,18 @@ rate.
 
 ## Explicitly not yet claimed
 
-- Nothing about trained neural-network weights (Stage B/C/D of the mission
-  ladder) — no such experiment has been run yet.
+- Nothing about real datasets, larger networks, or pretrained transformers
+  (Stage C/D of the mission ladder) — Stage B used one small synthetic-task
+  MLP only.
 - Nothing about direct inference without materializing full weight tensors
   (mission section 8) — not attempted yet.
 - Nothing about cross-layer/cross-model shared dictionaries (mission section
   7) — not attempted yet.
 - No patentability or novelty claim — see `docs/RESEARCH_LOG.md` Experiment
-  2's "Novelty discipline" note; this method is a known family (VQ/codebook
-  clustering + affine correction), not a new technique.
+  2's "Novelty discipline" note; the structural method is a known family
+  (VQ/codebook clustering + affine correction), not a new technique. The
+  Stage B behavioral-robustness finding is a reproduction of a known class
+  of deep-learning phenomena (flat minima / weight-space redundancy in
+  trained networks), not a new discovery in itself — its value here is as
+  *measured evidence for the mission's Stage B question*, not as a novel
+  claim.

@@ -1,9 +1,11 @@
 # Research Log — Track B (`atlas_nn`)
 
-All entries below are for Stage A (synthetic matrices, mission section 9).
-Full per-row data: `results/atlas_nn_stage_a.json` (180 rows = 6 matrices ×
-10 methods × 3 seeds `(101, 202, 303)`, shape 64×64, git commit at time of
-run recorded per row).
+Full per-row data:
+- Stage A: `results/atlas_nn_stage_a.json` (180 rows = 6 synthetic matrices × 10 methods × 3 seeds `(101, 202, 303)`, shape 64×64).
+- Stage B: `results/atlas_nn_stage_b.json` (126 rows = 3 Linear layers × 2 model states (random-init / trained) × 7 methods × 3 seeds `(11, 22, 33)`).
+
+Every row carries git commit + timestamp; every JSON is reproducible with
+the corresponding `experiments/run_atlas_nn_stage_*.py` script.
 
 ---
 
@@ -128,11 +130,105 @@ continuous affine variation, and it's irrelevant for global low-rank
 structure. So: real, narrow, verified win — not yet a general-purpose
 result.
 
-**Next experiment.** Two candidate next steps (see
-`docs/NEXT_RESEARCH_DECISION.md` for the actual choice and reasoning):
-(1) fix the encoding so it doesn't lose to zlib on exact-repeat data
-(entropy-code the residual/indices, or detect and special-case zero
-residuals); (2) move to Stage B (trained vs. randomly-initialized small
-neural networks) to test whether *training* produces this kind of
-affine-block structure in real weight tensors, which is the actual research
-question Stage A was built to prepare for.
+**Next experiment.** Move to Stage B: does *training* a real network
+produce structure that compression methods (baselines or Atlas) can
+exploit, compared to the same architecture at random initialization? This
+is the mission's actual central question — Stage A was scaffolding for it.
+
+---
+
+## Experiment 3 — Stage B: does training create compressible structure?
+
+**Hypothesis.** Weight tensors from a *trained* small MLP will be more
+compressible (lower reconstruction error at matched bit budget, and/or less
+behaviorally sensitive to compression error) than the same tensors at random
+initialization — because training is expected to concentrate the useful
+signal into a lower-effective-dimensional subspace of the weight space.
+
+**Method.** `experiments/run_atlas_nn_stage_b.py`. 3-layer MLP
+(32→64→64→2, `atlas_nn.stage_b.model.build_mlp`), trained on a synthetic
+XOR-of-two-coordinates task embedded in 32-dim Gaussian noise
+(`atlas_nn.stage_b.dataset.make_xor_dataset` — not linearly separable, so
+training is required to solve it; reaches 100% train accuracy, 87–93% held-
+out accuracy across seeds 11/22/33 in 500 epochs of Adam). For each of the
+3 Linear layers' weight matrices, in both the **random-init** state
+(snapshotted before training) and the **trained** state (same weights,
+after training), every Stage-A method is applied and the reconstructed
+weight is substituted back into the live model to measure **both** tensor
+error (relative L2) **and** behavioral error (accuracy drop,
+relative L2 error of output logits vs. the uncompressed model) on a held-out
+eval set — directly implementing the mission's requirement to measure
+behavioral preservation, not just reconstruction MSE (section 3).
+
+**Result 1 — tensor-level compressibility (mean over 3 seeds).** The
+clearest signal is on the 64×64 hidden→hidden layer:
+
+| method | random-init rel_l2 | trained rel_l2 |
+|---|---|---|
+| svd_rank4 | 0.891 | **0.414** |
+| vector_codebook (k=16) | 0.722 | 0.583 |
+| atlas_block_dict16_res4bit | 0.063 | 0.067 |
+| quantize_4bit | 0.063 | 0.071 |
+
+SVD is the one method that shows real tensor-level improvement from
+training (relative error roughly halves at the same rank-4 budget) — training
+visibly pushes this layer's weight matrix toward lower effective rank, a
+known deep-learning phenomenon (small-task/low-intrinsic-dimensionality
+training concentrating weight matrices onto a low-rank subspace), reproduced
+here as a real, multiseed, measured effect rather than assumed from theory.
+Quantization and the block-dictionary method show **no** improvement from
+training (error is essentially unchanged or slightly worse) — those methods
+aren't sensitive to the kind of structure training adds here.
+
+**Result 2 — behavioral robustness (the stronger, more consistent signal).**
+Comparing relative L2 error of the *tensor* vs. relative L2 error of the
+*output logits* after substitution, at the 64×64 layer:
+
+| method | random-init: rel_l2 → rel_logit | trained: rel_l2 → rel_logit |
+|---|---|---|
+| svd_rank4 | 0.891 → 0.928 (≈1:1) | 0.414 → **0.039** (11× smaller) |
+| atlas_block_dict16_res4bit | 0.063 → 0.061 (≈1:1) | 0.067 → **0.015** (4.5× smaller) |
+| quantize_4bit | 0.063 → 0.069 (≈1:1) | 0.071 → **0.017** (4× smaller) |
+| prune_50pct | 0.354 → 0.356 (≈1:1) | 0.275 → **0.084** (3.3× smaller) |
+
+For the **random-init** network, weight error and output error track each
+other almost exactly (ratio ≈ 1) for every method — expected, since an
+untrained network has no learned redundancy to absorb a perturbation. For
+the **trained** network, every single method shows output error dropping to
+a fraction of the weight error — the same absolute amount of weight
+corruption does far less damage to what the network actually computes.
+Accuracy drop (the coarser metric) stayed small and noisy for both states
+(±0–5 points on a 200–300-sample eval set) and did **not** show this pattern
+clearly — `relative_logit_error` was the metric that actually revealed the
+trained/random distinction, which is itself a useful methodological
+finding: accuracy alone was not sensitive enough on this task.
+
+**Result 3 — small-layer overhead can make "compression" expand the
+tensor.** The output layer (2×64, 512 bytes) is small enough that method
+overhead (a k=16 codebook alone is 16×8×4 = 512 bytes; the Atlas
+dictionary is 16×64×4 = 4096 bytes) exceeds the tensor itself:
+`atlas_block_dict16_res4bit` gives ratio **0.21** (the "compressed" form is
+~5× *larger* than the original tensor) on this layer in both states; SVD,
+vector-codebook, and zlib all hover at ratio ≈0.97–0.98 (net-neutral to
+slightly expanding). Only plain quantization (no learned overhead) reliably
+compresses this layer (ratio 3.76–6.4). Real, unglamorous, worth keeping in
+mind for Stage C: per-layer structural methods should not be applied to
+small layers without checking the overhead first.
+
+**Interpretation.** This is genuine, if modest, positive evidence for the
+mission's central Stage B question: **training does create additional
+structure**, most clearly visible as increased *behavioral* robustness to
+weight-level compression error (a large, consistent, multiseed effect across
+every method tested) and, for at least one layer/method combination
+(SVD on the 64×64 layer), as directly measurable tensor-level
+compressibility. It does not yet show that any *specific* Atlas method
+becomes dramatically more effective post-training — the block-dictionary
+method's own reconstruction error was essentially flat between states, even
+though the *behavioral consequence* of that same error dropped sharply. That
+gap (tensor error unchanged, functional error much smaller) is itself the
+finding, and is consistent with "trained networks live in flatter/more
+redundant regions of weight space" rather than "trained weight tensors
+literally contain more of the specific shared-prototype structure Atlas
+section 5 targets."
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
