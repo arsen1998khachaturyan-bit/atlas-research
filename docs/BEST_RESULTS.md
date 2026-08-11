@@ -103,6 +103,42 @@ dataset or a larger network (mission Stage C).
 
 ---
 
+## VERIFIED RESULT: at matched behavioral quality, training roughly doubles achievable compression ratio on deeper layers — but not on the input layer
+
+**Claim.** Sweeping each method family's parameter to find the most
+aggressive setting that still keeps `relative_logit_error ≤ 0.05`
+(`atlas_nn.stage_b.budget_search`), the best achievable compression ratio
+on the 64×64 hidden layer rises from 5.32× (random init) to 8.00–10.61×
+(trained) — a 1.5–2× improvement — and similarly on the 2×64 output layer
+(4.92× → 7.11–9.14×). The clearest single case: SVD on the hidden layer
+needs near-full rank to stay within 5% behavioral error on random-init
+weights (ratio 0.50 — effectively no compression), but only rank 4 after
+training (ratio 8.00) — a direct, measured, 16× swing in a real compression
+metric caused by training alone, same architecture, same eval protocol.
+**The first (input-facing) layer shows no improvement at all** — same best
+ratio (5.31×) and same winning method before and after training — so this
+effect is depth-dependent, not uniform.
+
+**How verified.** Reproduced across 3 independent training seeds (11, 22,
+33); direction and rough magnitude of the effect held in every seed for
+layers 2 and 4, and the layer-0 null result also held in all 3 seeds.
+5 method families × ~6 parameter settings each swept per layer/state/seed
+(558 total measured configurations). Reproduce with
+`python -m experiments.run_atlas_nn_stage_b_budget_search` (writes
+`results/atlas_nn_stage_b_budget_search.json`) or
+`pytest tests/test_atlas_nn_budget_search.py`.
+
+**Scope of the claim.** Same caveats as the Stage B behavioral-robustness
+result above: one small architecture, one synthetic XOR task, one
+behavioral-error threshold (5%) — not yet checked at other thresholds, a
+real dataset, or larger networks. The `magnitude_prune` family's ratios in
+this result are sometimes <1 (net expansion) due to sparse-COO encoding
+overhead at this matrix scale — a real limitation of that baseline's
+encoding, not evidence against the underlying finding (see
+`docs/RESEARCH_LOG.md` Experiment 4 for the full caveat).
+
+---
+
 ## OBSERVATION: k-means dictionary fitting is not perfectly reliable at small dictionary sizes
 
 On `block_repeated` with `dict_size=8` (only 4 true unique blocks exist),

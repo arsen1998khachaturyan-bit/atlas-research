@@ -231,4 +231,85 @@ redundant regions of weight space" rather than "trained weight tensors
 literally contain more of the specific shared-prototype structure Atlas
 section 5 targets."
 
+**Next experiment.** Turn the tensor-vs-behavior gap into an actionable
+compression-budget search: instead of a fixed bit-width, find the most
+aggressive setting of each method that still keeps behavioral error under a
+threshold, and see whether the achievable ratio is actually higher
+post-training.
+
+---
+
+## Experiment 4 — Behavior-budgeted compression: how much further does the ratio go post-training?
+
+**Hypothesis.** If trained-network behavior really is more robust to weight
+error (Experiment 3), then at a *fixed behavioral quality bar* (rather than
+a fixed bit-width), the best achievable compression ratio should be higher
+for trained weights than for the same layer at random initialization.
+
+**Method.** `experiments/run_atlas_nn_stage_b_budget_search.py` /
+`atlas_nn.stage_b.budget_search`. For every layer × model state × seed
+(11/22/33), each method family (quantization, SVD, magnitude pruning,
+vector-codebook, Atlas block-dictionary) is swept over its own parameter
+grid; for each family, the highest compression ratio among configurations
+with `relative_logit_error ≤ 0.05` is kept (all raw sweep rows saved too).
+Results: `results/atlas_nn_stage_b_budget_search.json` (18 layer×state×seed
+searches × ~31 configs each = 558 measured rows).
+
+**Result (best ratio meeting the 5% behavioral-error bar, mean over 3
+seeds):**
+
+| layer | shape | random-init best ratio | trained best ratio | change |
+|---|---|---|---|---|
+| 0 (input→hidden) | 64×32 | 5.31 (quantize_6bit) | 5.31 (quantize_6bit) | **none** |
+| 2 (hidden→hidden) | 64×64 | 5.32 (quantize_6bit) | 8.00–10.61 (svd_rank4 / quantize_3bit) | **1.5–2×** |
+| 4 (hidden→output) | 2×64 | 4.92 (quantize_6bit) | 7.11–9.14 (quantize_3bit/4bit) | **1.4–1.9×** |
+
+Per-family detail on layer 2 (mean ratio among configs meeting the
+threshold, out of 3/3 seeds meeting it unless noted):
+
+| family | random-init | trained |
+|---|---|---|
+| quantize | 5.32 | **9.73** |
+| svd | 0.50 (needs near-full rank just to stay accurate — barely better than storing the matrix directly) | **8.00** (rank 4 suffices) |
+| prune | never meets the bar at any tested sparsity ≥30% | **0.71** (now meets it, though still net-expanding at this encoding's overhead — see caveat) |
+| vector_codebook | never meets the bar | never meets the bar |
+| atlas_block_dict | 3.19 | **4.54** |
+
+**Interpretation.** This directly confirms and quantifies Experiment 3's
+finding as an *actionable* result, not just an observation: at matched
+behavioral quality, the deeper two layers (2 and 4) tolerate substantially
+more aggressive compression after training — roughly 1.5–2× the ratio,
+consistently across 3 seeds. The clearest individual case is SVD on layer
+2: before training, keeping behavioral error under 5% requires close to
+full rank (ratio 0.50, i.e. no real compression); after training, rank 4
+suffices (ratio 8.00) — a direct, measured demonstration that training
+concentrates this layer's useful signal into a low-rank subspace, going
+beyond Experiment 3's rel_l2 number (which only showed the *ratio* of
+tensor-to-behavioral error) to show the *achievable compression* itself
+increased.
+
+**The layer-0 null result matters too.** The first (input-facing) layer
+shows *zero* improvement — same best ratio (5.31) whether trained or not,
+and the same winning method (6-bit quantization) in both states. This
+layer must preserve enough information about the two informative input
+coordinates (out of 32, mostly noise) to solve the task at all, and
+training doesn't create slack there the way it does in later layers. This
+is a real negative result, not a gap in the experiment, and narrows the
+"training creates structure" claim usefully: it's not uniform across
+depth.
+
+**Caveat on the `prune` family's ratio <1 result.** A ratio below 1.0 means
+the "compressed" form is larger than the original tensor — here, that's a
+property of the sparse-COO encoding's fixed per-nonzero overhead (int32
+index + float32 value, i.e. 2× the cost of a dense element), not of the
+underlying pruning idea. The finding that *some* sparsity now clears the
+quality bar post-training (vs. none before) is real; the encoding just
+isn't efficient enough to turn that into an actual size win at this matrix
+scale. Flagged rather than hidden, per mission section 11.
+
+**Falsification angle.** `vector_codebook` never met the quality bar in
+either state, at any tested `k` — a real, consistent failure, not
+cherry-picked away. Not every method benefits from training's added
+robustness; this one appears too lossy for this task/threshold regardless.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
