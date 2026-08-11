@@ -355,6 +355,55 @@ several exactly-repeated `compression_gain` values from
 result here, not the precise r values. Reported per mission section 11:
 a negative result is exactly as useful as a positive one.
 
+> **⚠ Update after Experiment 11 (residual/LayerNorm ablation):** the
+> specific r=−0.54 above should be read with additional caution — a
+> same-condition rerun with a different (but conceptually equivalent)
+> implementation gave r=+0.33 for block 1, not a matching negative value.
+> At n≈9 per block, this correlation is not stable enough across
+> reimplementations to trust as a precise estimate in either direction.
+> The qualitative claim this entry leads with ("no positive relationship
+> like the MLP's, unlike expected") still stands — neither rerun found
+> anything resembling the MLP's r≈+0.67 — but treat any specific r value
+> here as illustrative, not as a measured effect size.
+
+---
+
+## OBSERVATION: LayerNorm, not residual connections, drives the magnitude of the Transformer's robustness gain — and the depth gradient survives removing both
+
+**What was tested.** `experiments/run_atlas_nn_stage_c_lite_residual_ablation.py`
+trained the Stage C-lite Transformer in all 4 combinations of
+residual-connections-on/off × LayerNorm-on/off (3 seeds each), measuring
+per-layer behavioral robustness gain (relative-logit-error ratio,
+random-init vs. trained, `svd_rank4`).
+
+**Finding 1 (fairly solid — consistent across all 4 conditions, 12
+seed-condition combinations).** The block-1-gains-more-than-block-0 depth
+gradient found in Experiment 8 survives every ablation condition,
+including with *both* residual connections and LayerNorm removed
+(block 0 mean gain 0.6 vs. block 1's 9.9 in that condition — the gradient
+direction, if anything, sharpens when both features are removed). The
+depth gradient is not an artifact of either feature; something more basic
+about layer depth/position drives it.
+
+**Finding 2 (moderate confidence — consistent direction across 2
+comparisons, not independently replicated further).** Removing LayerNorm
+roughly halves-to-thirds the block-1 gain in both comparisons available
+(with-LN conditions: 27.1 and 33.1; without-LN conditions: 13.9 and 9.9).
+Removing residual connections alone barely moves it (27.1 → 33.1, if
+anything slightly higher without residuals) — the opposite of what the
+original "residual connections as error-absorbing pathway" hypothesis
+predicted. LayerNorm, not residual connections, looks like the more
+likely driver of gain *magnitude* specifically.
+
+**Scope.** Both findings are from one small architecture, one task, 3
+seeds, n=6–9 data points per block per condition — real signal, but not
+enough replication to call either "verified" in the same sense as the
+project's stronger multi-seed, multi-condition results. Listed as an
+OBSERVATION rather than a VERIFIED RESULT for that reason. The rank-shrinkage-
+correlation part of the original hypothesis (see the entry above) is
+explicitly *not* supported by this experiment either — see that entry's
+update note.
+
 ---
 
 ## OBSERVATION: k-means dictionary fitting is not perfectly reliable at small dictionary sizes

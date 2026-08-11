@@ -778,4 +778,87 @@ arguably more informative: it narrows what "capacity" actually means
 across architectures rather than letting one convenient metric stand in
 for it everywhere.
 
+**Next experiment.** Test the residual-connection/LayerNorm hypothesis
+directly: does removing either restore a rank-based relationship, or
+change the magnitude/depth-gradient of the robustness gain?
+
+---
+
+## Experiment 11 — Residual/LayerNorm ablation: depth gradient is architecture-independent; LayerNorm drives magnitude; rank correlation is too noisy to trust
+
+**Hypothesis.** If residual connections and/or LayerNorm explain the
+Transformer's robustness gain (Experiment 10's working hypothesis),
+removing them should shrink the gain and/or restore a positive
+rank-shrinkage correlation like the MLP's.
+
+**Method.** `experiments/run_atlas_nn_stage_c_lite_residual_ablation.py`.
+A hand-rolled encoder block (`atlas_nn.stage_c_lite.model.
+AblationEncoderBlock`, needed since `nn.TransformerEncoderLayer` hardcodes
+both features) with independent `use_residual`/`use_layernorm` toggles,
+trained in all 4 combinations, 3 seeds each. For each layer: behavioral
+robustness gain (relative-logit-error ratio, random-init vs. trained, at
+fixed `svd_rank4` — a continuous metric, unlike Experiment 9's discrete
+budget-search ratio) and effective-rank shrinkage, correlated as in
+Experiment 10, both pooled and split by block.
+
+**Result 1 — the block1 > block0 depth gradient survives every
+condition, including with both features removed.** Mean robustness gain,
+block0 → block1:
+
+| condition | block 0 | block 1 | ratio |
+|---|---|---|---|
+| residual + layernorm (baseline) | 4.5 | 27.1 | 6.0× |
+| no residual (layernorm only) | 5.8 | 33.1 | 5.7× |
+| no layernorm (residual only) | 3.9 | 13.9 | 3.6× |
+| neither | 0.6 | 9.9 | 17× (block 0 nearly gone) |
+
+The depth gradient itself is not caused by residual connections or
+LayerNorm — it persists, in the same direction, in all four
+configurations. Whatever makes later layers gain more from training than
+earlier ones is a more fundamental property of depth/position in this
+architecture, not an artifact of either ablated feature.
+
+**Result 2 — LayerNorm (not residual connections) drives the overall
+magnitude of the gain.** Comparing the two conditions *with* LayerNorm
+(4.5→27.1 and 5.8→33.1) against the two *without* (3.9→13.9 and
+0.6→9.9): removing LayerNorm roughly halves-to-thirds the block-1 gain in
+every comparison; removing residual connections alone barely changes it
+(27.1 → 33.1, if anything slightly higher without residuals). This
+inverts the original hypothesis's emphasis — LayerNorm, not residual
+connections, looks like the more likely magnitude driver.
+
+**Result 3 — the rank-shrinkage correlation is too unstable across
+conditions (and reruns) to support a mechanistic claim.** Block-1 Pearson
+r: baseline +0.33, no-residual −0.73, no-layernorm +0.63,
+neither +0.23 (all n=6–9). Note the baseline here (+0.33) does not even
+match Experiment 10's original measurement of the *same conceptual
+condition* (−0.54) — different underlying implementation (hand-rolled
+block with dropout=0 vs. `nn.TransformerEncoderLayer`'s default dropout,
+and a continuous vs. discretized gain metric), same small sample size.
+**The sign and magnitude of this correlation are not reproducible enough,
+at n≈9, to trust as evidence for or against any specific mechanism** —
+this is itself the most important methodological finding of this
+experiment, not any single r value.
+
+**Interpretation.** Ablation cleanly separated two previously-conflated
+questions. (1) The depth gradient is real, architecture-independent
+(within this Transformer's variants), and not explained by either ablated
+feature — an open question, not resolved by this experiment. (2)
+LayerNorm plausibly explains *why the gains are as large as they are* — a
+specific, falsifiable, moderately-supported claim. (3) The Experiment 10
+correlation finding should be **downgraded from "moderate negative
+correlation" to "no reliable correlation detectable at this sample
+size"** — the original claim ("effective rank does not predict the
+Transformer's gain the way it predicted the MLP's") still stands, but
+the specific r=−0.54 should not be treated as a stable, precisely
+estimated effect; see `docs/BEST_RESULTS.md` for the corrected framing.
+
+**Falsification value.** This experiment did what it was designed to do
+even though it didn't confirm the original hypothesis: it discriminated
+between two candidate mechanisms (residual vs. LayerNorm) rather than
+treating "residual/LayerNorm" as one bundled explanation, and it caught
+its own predecessor's result (Experiment 10's specific correlation
+number) as statistically fragile before that number could be over-relied
+upon in future planning.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
