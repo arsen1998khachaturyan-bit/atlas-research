@@ -12,8 +12,6 @@ import torch
 
 from atlas_nn.baselines.common import CompressedResult
 from atlas_nn.metrics import compression_ratio, reconstruction_metrics, timed_call
-from atlas_nn.stage_b.model import get_weight, set_weight
-from atlas_nn.stage_b.train import evaluate, load_snapshot, snapshot
 
 
 def _git_commit() -> str | None:
@@ -35,9 +33,15 @@ def run_layer_experiment(
     model_state_label: str,
     method_name: str,
     compress_fn: Callable[[np.ndarray], CompressedResult],
-    x_eval: np.ndarray,
-    y_eval: np.ndarray,
+    x_eval,
+    y_eval,
     seed: int,
+    get_weight: Callable,
+    set_weight: Callable,
+    evaluate: Callable,
+    snapshot: Callable,
+    load_snapshot: Callable,
+    experiment_name: str = "atlas_nn-stage_b",
 ) -> dict:
     """Compress one Linear layer's weight matrix, reconstruct it, put the
     reconstruction back into a *copy* of the model's current weights, and
@@ -45,6 +49,13 @@ def run_layer_experiment(
     (uncompressed) model in its current state. The model's own weights are
     restored to their original value before returning, regardless of
     outcome, so this is safe to call repeatedly on the same model instance.
+
+    `get_weight`/`set_weight`/`evaluate`/`snapshot`/`load_snapshot` are
+    injected rather than imported directly so this function works with any
+    model type that implements the same small interface (see
+    `atlas_nn.stage_b.model`/`train` for the MLP implementation,
+    `atlas_nn.stage_c_lite.model`/`train` for the Transformer one) -- the
+    compression/measurement logic here is architecture-agnostic.
     """
     original_weight = get_weight(model, layer_name).detach().numpy().copy()
     original_state = snapshot(model)
@@ -75,7 +86,7 @@ def run_layer_experiment(
     total_bytes = int(result.total_bytes)
 
     return {
-        "experiment": "atlas_nn-stage_b",
+        "experiment": experiment_name,
         "model_state": model_state_label,
         "layer": layer_name,
         "layer_shape": list(original_weight.shape),

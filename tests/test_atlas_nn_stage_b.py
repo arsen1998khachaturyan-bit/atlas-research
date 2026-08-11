@@ -95,6 +95,11 @@ def test_run_layer_experiment_restores_model_weights_and_records_behavioral_metr
         x_eval=x_eval,
         y_eval=y_eval,
         seed=4,
+        get_weight=get_weight,
+        set_weight=set_weight,
+        evaluate=evaluate,
+        snapshot=snapshot,
+        load_snapshot=load_snapshot,
     )
 
     # weights must be restored after the experiment

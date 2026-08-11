@@ -74,6 +74,11 @@ def sweep_family(
     x_eval: np.ndarray,
     y_eval: np.ndarray,
     seed: int,
+    get_weight,
+    set_weight,
+    evaluate,
+    snapshot,
+    load_snapshot,
     quality_metric: str = "relative_logit_error",
     quality_threshold: float = 0.05,
 ) -> dict:
@@ -92,6 +97,11 @@ def sweep_family(
             x_eval=x_eval,
             y_eval=y_eval,
             seed=seed,
+            get_weight=get_weight,
+            set_weight=set_weight,
+            evaluate=evaluate,
+            snapshot=snapshot,
+            load_snapshot=load_snapshot,
         )
         row["family"] = family_name
         row["param"] = param
@@ -118,6 +128,11 @@ def run_budget_search(
     x_eval: np.ndarray,
     y_eval: np.ndarray,
     seed: int,
+    get_weight,
+    set_weight,
+    evaluate,
+    snapshot,
+    load_snapshot,
     quality_threshold: float = 0.05,
 ) -> dict:
     max_rank = min(layer_shape)
@@ -133,6 +148,11 @@ def run_budget_search(
             x_eval=x_eval,
             y_eval=y_eval,
             seed=seed,
+            get_weight=get_weight,
+            set_weight=set_weight,
+            evaluate=evaluate,
+            snapshot=snapshot,
+            load_snapshot=load_snapshot,
             quality_threshold=quality_threshold,
         )
         for family_name, configs in families.items()

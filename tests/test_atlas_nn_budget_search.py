@@ -6,8 +6,8 @@ torch = pytest.importorskip("torch")
 
 from atlas_nn.stage_b.budget_search import run_budget_search
 from atlas_nn.stage_b.dataset import make_xor_dataset
-from atlas_nn.stage_b.model import build_mlp, get_weight, linear_layer_names
-from atlas_nn.stage_b.train import load_snapshot, snapshot, train_mlp
+from atlas_nn.stage_b.model import build_mlp, get_weight, linear_layer_names, set_weight
+from atlas_nn.stage_b.train import evaluate, load_snapshot, snapshot, train_mlp
 
 
 def test_run_budget_search_returns_well_formed_result():
@@ -29,6 +29,11 @@ def test_run_budget_search_returns_well_formed_result():
         x_eval=x_eval,
         y_eval=y_eval,
         seed=7,
+        get_weight=get_weight,
+        set_weight=set_weight,
+        evaluate=evaluate,
+        snapshot=snapshot,
+        load_snapshot=load_snapshot,
         quality_threshold=0.2,
     )
 

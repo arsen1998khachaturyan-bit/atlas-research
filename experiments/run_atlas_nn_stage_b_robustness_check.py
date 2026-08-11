@@ -20,7 +20,7 @@ from __future__ import annotations
 from atlas_nn.stage_b.budget_search import run_budget_search
 from atlas_nn.stage_b.dataset import make_parity_dataset, make_xor_dataset
 from atlas_nn.stage_b.experiment import save_json
-from atlas_nn.stage_b.model import build_mlp, get_weight, linear_layer_names
+from atlas_nn.stage_b.model import build_mlp, get_weight, linear_layer_names, set_weight
 from atlas_nn.stage_b.train import evaluate, load_snapshot, snapshot, train_mlp
 
 SEEDS = (11, 22, 33)
@@ -68,6 +68,11 @@ def run_condition(
                     x_eval=x_eval,
                     y_eval=y_eval,
                     seed=seed,
+                    get_weight=get_weight,
+                    set_weight=set_weight,
+                    evaluate=evaluate,
+                    snapshot=snapshot,
+                    load_snapshot=load_snapshot,
                     quality_threshold=QUALITY_THRESHOLD,
                 )
                 search["condition"] = condition_name
