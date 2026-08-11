@@ -695,4 +695,87 @@ increases with depth — on a real task, a real (if small) attention-based
 architecture, reproducing the same qualitative pattern found across
 Experiments 4–7 on an entirely different architecture and task family.
 
+**Next experiment.** Test whether Experiment 7's effective-rank
+capacity-metric finding (rank shrinkage predicts compression-gain
+magnitude, r≈0.67 on the MLP's hidden layer) transfers to the Transformer
+the way the qualitative and quantitative compression findings already did.
+
+---
+
+## Experiment 10 — Does effective rank predict the Transformer's compression gain? (It does not — a genuine divergence from the MLP)
+
+**Hypothesis.** Given that Experiments 8–9 showed the Transformer
+reproduces (and sharpens) the MLP's behavioral-robustness and
+achievable-compression-ratio findings, effective-rank shrinkage should
+similarly predict the *magnitude* of the compression gain here, the way
+it did (r≈0.67, Experiment 7) for the MLP's hidden layer.
+
+**Method.** `experiments/analyze_stage_c_lite_capacity_metric.py`,
+same 3 seeds as Experiments 8–9, deterministically reproduced. Effective
+rank (`atlas_nn.stage_b.capacity_metrics`) computed per layer in both
+states, correlated against `log(compression_gain)` from Experiment 9,
+both overall and split by Transformer block.
+
+**Result — no positive correlation; if anything, weakly negative, and the
+underlying rank shrinkage itself is far smaller than the MLP's.**
+
+| scope | n | Pearson r | Spearman r |
+|---|---|---|---|
+| overall | 21 | −0.25 | −0.26 |
+| block 0 | 9 | −0.33 | −0.03 |
+| block 1 | 9 | **−0.54** | **−0.53** |
+| classifier head | 3 | 0.48 | −0.50 (n too small to weigh) |
+
+This is the **opposite sign** from Experiment 7's MLP finding (r≈+0.67 on
+the hidden layer). Block 1 — the layer type showing the *largest*
+compression gains in Experiment 9 — shows the *clearest* negative
+correlation between rank shrinkage and gain, of any subgroup tested.
+
+**A second, more basic divergence, visible before even computing a
+correlation: the rank shrinkage itself is tiny here.** Random-init
+effective rank for `linear1`/`linear2` (max_rank 64) sits around 59–60
+(92–93% of max) and only drops to ~58–59 after training (still ~91–92%) —
+a 1–2% relative shrinkage. The attention `out_proj` layers shrink slightly
+more (51–52 → 49–50, ~3–4%). Compare this to Experiment 7's MLP hidden
+layer, where training shrank effective rank by up to 44% at width 256.
+**Yet the Transformer's compression and behavioral-robustness gains
+(Experiments 8–9) are as large or larger than the MLP's**, despite far
+less movement in this particular spectral metric.
+
+**Interpretation.** Effective rank of the raw weight matrix is not a
+universal explanation for the capacity-slack effect — it worked
+(moderately, r≈0.67, one layer) for the MLP, and does not work at all for
+the Transformer, despite the underlying compression/behavioral-robustness
+phenomenon itself transferring cleanly (Experiments 8–9). This suggests
+the mechanism Experiment 7 partially captured for the MLP's hidden layer
+is not "training reduces effective rank, and that's why compression gets
+easier" as a general law — something else must explain the Transformer's
+robustness gain. A plausible (unverified) candidate: residual connections
+and layer normalization, present in the Transformer but not the MLP, may
+provide a downstream-mixing/error-absorbing pathway that makes a given
+sublayer's output tolerant to perturbation *without* that sublayer's own
+weight matrix needing to become lower-rank — i.e. the robustness may live
+in the architecture's connectivity, not in any single layer's spectral
+structure. This is a **hypothesis, not a verified finding** — untested
+this round.
+
+**Caveat on statistical power.** n=9 per block with several *exactly
+repeated* compression_gain values across seeds (e.g. block 1 `out_proj`:
+gain=3.016 in all 3 seeds) — an artifact of `run_budget_search`'s coarse,
+discrete parameter grid landing on the same grid point repeatedly, not
+independent measurements. The correlation coefficients above should be
+read as suggestive, not as precisely estimated effect sizes; the clearer
+and more load-bearing finding here is the qualitative one (no positive
+relationship, unlike the MLP), not the exact r values.
+
+**Falsification value.** This is a direct, honest non-replication of
+Experiment 7's mechanism on a second architecture, even though the
+higher-level phenomenon (Experiments 3, 8) and its quantitative form
+(Experiments 4/6, 9) both replicated. Reported as found, not smoothed into
+the existing "effective rank explains it" narrative — per mission section
+11, a negative result here is exactly as useful as a positive one, and
+arguably more informative: it narrows what "capacity" actually means
+across architectures rather than letting one convenient metric stand in
+for it everywhere.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

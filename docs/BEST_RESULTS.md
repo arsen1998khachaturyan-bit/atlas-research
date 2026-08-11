@@ -315,6 +315,46 @@ sharpening (a testable number, not just a direction) precisely where the
 mechanism was expected to operate, and an honest non-result where it
 wasn't (input layer) or wasn't a fair test (output layer).
 
+> **⚠ Update after Experiment 10 (Transformer capacity-metric check):**
+> this positive correlation did **not** transfer to the Stage C-lite
+> Transformer, despite the underlying compression/behavioral-robustness
+> effect itself transferring cleanly (Experiments 8–9). On the
+> Transformer, rank shrinkage vs. compression gain trends **negative**
+> (block 1: r=−0.54, the layer type with the *largest* gains) — see the
+> OBSERVATION below. Effective rank of a layer's own weight matrix is
+> therefore not a general explanation for the capacity-slack effect
+> across architectures; it may be specific to feedforward layers without
+> a residual/normalization pathway. This entry's original MLP measurement
+> still stands as reproducible and correct on the MLP — what's now known
+> not to hold is generalizing it as "the" mechanism.
+
+---
+
+## OBSERVATION: effective rank does NOT predict the Transformer's compression gain — a genuine divergence from the MLP
+
+Repeating Experiment 7's analysis on the Stage C-lite Transformer
+(`experiments/analyze_stage_c_lite_capacity_metric.py`, same 3 seeds as
+Experiments 8–9) found no positive relationship between effective-rank
+shrinkage and compression-gain magnitude — overall r=−0.25 (n=21), and
+specifically **r=−0.54** on block 1 (n=9), the exact layer type showing
+the *largest* compression gains in Experiment 9. This is the opposite
+sign from the MLP's r≈+0.67. A more basic divergence underlies it: the
+Transformer's effective rank barely shrinks with training at all (FFN
+layers: ~92–93% of max rank before training, ~91–92% after — a 1–2%
+relative change) even though its compression/robustness gains are as
+large or larger than the MLP's, where the best-correlated layer showed up
+to 44% relative rank shrinkage. Working (unverified) hypothesis: the
+Transformer's residual connections and layer normalization may provide an
+error-absorbing pathway that makes a sublayer's output robust to
+perturbation independent of that sublayer's own weight-matrix rank — i.e.
+the robustness may live in architectural connectivity, not in any single
+layer's spectral structure. Statistical power is limited (n=9 per block,
+several exactly-repeated `compression_gain` values from
+`run_budget_search`'s coarse discrete grid) — the qualitative
+"no positive relationship, unlike the MLP" finding is the load-bearing
+result here, not the precise r values. Reported per mission section 11:
+a negative result is exactly as useful as a positive one.
+
 ---
 
 ## OBSERVATION: k-means dictionary fitting is not perfectly reliable at small dictionary sizes

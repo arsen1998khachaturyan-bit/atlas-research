@@ -1,123 +1,122 @@
 # Next Research Decision
 
-Updated after Experiment 9 (Stage C-lite budget search), which converted
-Experiment 8's qualitative Transformer finding into the same quantitative
-"achievable ratio at matched quality" form used for the MLP in Experiments
-4/6. Covers Track B (`atlas_nn`) only — Track A is unaffected and out of
-scope for this document.
+Updated after Experiment 10 (Transformer capacity-metric check), which
+found a genuine divergence from the MLP: the phenomenon transfers across
+architectures, but the effective-rank *explanation* for it does not.
+Covers Track B (`atlas_nn`) only — Track A is unaffected and out of scope.
 
 ## 1. What we learned
 
-**Experiments 3–7 (MLP, synthetic tasks):** trained-network behavior is
-far more robust to weight-compression error than tensor error predicts;
-this tracks spare capacity relative to task difficulty (confirmed via a
-predicted reversal); effective rank partially predicts gain magnitude on
-the hidden layer specifically.
+**Experiments 3–7 (MLP):** trained-network behavior is far more robust to
+weight-compression error than tensor error predicts; this tracks spare
+capacity relative to task difficulty; effective rank partially predicts
+gain magnitude on the hidden layer specifically (r≈0.67).
 
-**Experiment 8 (Transformer, real task, qualitative):** the same
-behavioral-robustness effect reproduces on a structurally different
-architecture and a real task, strengthening with depth across two
-Transformer blocks (3.5–4.9× in block 0, 15.7–22.7× in block 1,
-per-seed).
+**Experiments 8–9 (Transformer, real task):** the core phenomenon —
+behavioral robustness and achievable compression ratio both increasing
+after training, more so in deeper layers — reproduces cleanly, in both
+qualitative and quantitative form, on a structurally different
+architecture and a real task.
 
-**Experiment 9 (this round) — the same finding, now as an actual
-compression-ratio number:** at a fixed 5% behavioral-error bar, achievable
-compression ratio rises from ~10–14× (random-init) to ~14–43× (trained),
-and the *increase from training* itself grows with depth: block 0 gains
-1.5×–3.1×, block 1 gains 3.0×–4.4×, consistently across all three matched
-layer-type pairs. Trained block-1 layers reach the highest ratios recorded
-for any real (non-tiny-output) layer in the project so far (~32–43×).
-SVD becomes the dominant method for trained block-1 layers, mirroring
-Experiment 7's MLP finding that SVD is most sensitive to training-induced
-rank structure — now on a second architecture.
+**Experiment 10 (this round) — the mechanism does NOT transfer, even
+though the phenomenon does:** effective-rank shrinkage does not positively
+predict the Transformer's compression gain (overall r=−0.25; block 1,
+the layer type with the *largest* gains, r=−0.54 — opposite sign from the
+MLP). The Transformer's effective rank barely moves with training (1–4%
+relative shrinkage) even where compression/robustness gains are largest —
+unlike the MLP, where the best-correlated layer showed up to 44%
+shrinkage. **The phenomenon is now well-evidenced across two
+architectures; its explanation is not.**
 
-**Taken together, Experiments 8–9 are the strongest transfer evidence in
-the project:** the core finding now holds not just across tasks and
-network widths within one MLP (Experiments 4–7), but across a
-structurally different architecture and a real (if simple) task,
-in both its qualitative (behavioral robustness) and quantitative
-(achievable ratio) forms.
+**Working hypothesis, unverified:** residual connections and layer
+normalization (present in the Transformer, absent in the plain MLP) may
+provide an error-absorbing pathway that makes a sublayer's output
+tolerant to weight perturbation independent of that sublayer's own
+weight-matrix spectral structure — i.e. robustness from architectural
+connectivity, not from any single layer becoming more low-rank.
 
 ## 2. What failed / remains untested
 
-- The numeric gain multipliers from budget-search (1.5×–4.4×) are smaller
-  than the raw relative-logit-error gains from the smoke test
-  (3.5×–22.7×) — a known artifact of the discrete parameter grid, not a
-  contradiction; noted so the two numbers aren't confused with each other.
-- The capacity-metric (effective-rank) analysis from Experiment 7 has
-  still not been repeated on the Transformer — unknown whether it predicts
-  gain magnitude here the way it did for the MLP's hidden layer.
-- The MLP's still-unexplained input-layer behavior (flat-to-negative
-  after training, Experiments 4/6) has not been investigated — still an
-  open question, not addressed this round.
-- Attention `in_proj_weight` (combined Q/K/V) remains untested — stored as
-  a raw parameter, not an `nn.Linear` submodule, so it's invisible to the
-  current layer-discovery mechanism.
-- Still small scale, still not mission Stage C's literal target (a real
-  pretrained model on a real dataset) — `huggingface.co` remains blocked
-  by network policy.
+- Effective rank as a cross-architecture explanation for the
+  capacity-slack effect — worked once (MLP hidden layer), failed on a
+  second architecture where it was expected to work even better (the
+  Transformer's block 1, which has the largest gains).
+- The residual-connection/LayerNorm hypothesis above is stated but not
+  tested this round — no experiment yet isolates whether removing
+  residual connections (or LayerNorm) from the Transformer would restore
+  a rank-based relationship, or whether some other property (e.g. weight
+  magnitude/scale distribution, attention-pattern sharpening) is the real
+  driver.
+- The MLP's still-unexplained input-layer behavior (flagged since
+  Experiment 4) remains open, now joined by a second open mechanism
+  question (what *does* explain the Transformer's gain, if not rank).
+- Statistical power for Experiment 10's correlations was limited (n=9 per
+  block, several exactly-repeated gain values from the coarse
+  budget-search grid) — the qualitative "no positive relationship" finding
+  is solid; the precise r values are not.
 
 ## 3. What worked
 
-- Reusing `run_budget_search` completely unchanged on a new architecture
-  (zero new logic needed beyond the dataset/model files) validated the
-  Experiment 8 refactor's payoff immediately — this is now demonstrated
-  twice (MLP, Transformer), not just claimed as a design goal.
-- Converting a qualitative finding into a quantitative one caught a subtlety
-  worth remembering: discrete search grids compress the *apparent* size of
-  a continuous effect. Both numbers are true; they answer different
-  questions ("how much does behavior degrade" vs. "how much can I actually
-  compress at this precision"), and conflating them would overstate or
-  understate the practical takeaway depending on which is quoted.
+- Running the exact same analysis (effective rank vs. compression gain)
+  on a second architecture, rather than assuming the MLP's mechanism
+  would transfer alongside the phenomenon, is what caught this — a direct
+  application of the mission's falsification discipline, and it produced
+  a more interesting, more specific research question than either a clean
+  confirmation or a total non-replication would have.
+- The distinction this reveals — *phenomenon* (robustness increases with
+  training and depth) vs. *mechanism* (why) — is itself a useful framing
+  going forward: two architectures now agree on the phenomenon; zero
+  mechanisms have been confirmed to generalize.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes, with the broadest evidentiary base in the project to date.** The
-central refined claim — trained networks can be represented with
-substantially less independent information in proportion to unused
-capacity, concentrated in deeper layers — now has quantitative,
-multiseed support on two structurally different architectures (MLP,
-Transformer), across three tasks (2-XOR, 3-parity, real sentiment text),
-in both tensor-adjacent (Experiment 7) and purely behavioral (Experiments
-3, 8) and combined ratio-at-quality (Experiments 4, 6, 9) forms. This is
-a materially broader base than any single experiment could provide, and
-the depth-gradient pattern — new information from the Transformer that
-the 3-layer MLP couldn't reveal (only 1 hidden layer to test) — is itself
-a specific, useful, falsifiable refinement: compression headroom does not
-merely exist somewhere in a trained network, it appears to *increase
-with representational depth*, at least in these two architectures.
-
-**What's still missing:** direct capacity-metric evidence on the
-Transformer (Experiment 7's analog); the input-layer explanation (open
-since Experiment 4); and, as always, real pretrained-model validation.
+**Yes for the phenomenon, not yet for any specific mechanism.** The
+practical claim — trained networks can be represented with substantially
+less information while preserving behavior, more so in deeper layers —
+now has strong, multiseed, cross-architecture, partially-real-task support
+(Experiments 3–4, 6, 8–9). But *why* this happens is now demonstrably not
+settled: the one candidate mechanism tested (effective rank) explains it
+on one architecture and not the other, despite the phenomenon itself
+being consistent across both. This is scientifically healthy — a strong
+empirical regularity with an open, actively narrowing mechanistic
+question — rather than either overclaiming ("training reduces rank, and
+that's why compression works") or underclaiming ("we don't know
+anything"). The mission's own framing (section 15's "very interesting"
+bar: large reduction + negligible degradation + reasonable runtime) is
+arguably met for the phenomenon on both architectures tested; the
+"why," which the mission does not explicitly require but which matters
+for predicting where this will and won't work at scale, is the open
+frontier now.
 
 ## 5. The single most informative next experiment
 
-Two candidates queued from before, still both open:
+**Test the residual-connection/LayerNorm hypothesis directly**: build a
+version of the Stage C-lite Transformer block with residual connections
+and/or LayerNorm disabled (or a matched plain-MLP-style stack of the same
+width/depth without them), retrain, and check whether (a) the
+behavioral-robustness gain shrinks toward the "no relationship" pattern,
+and/or (b) effective rank starts predicting the gain the way it did for
+the MLP. A clean result either way is informative: if disabling residual
+connections restores a rank-based relationship, that identifies
+architectural connectivity (not raw weight-matrix structure) as the real
+capacity-slack mechanism in attention-based models — a genuinely new,
+specific, falsifiable finding worth its own entry. If it doesn't, the
+residual-connection hypothesis is wrong and the search for the real
+mechanism continues elsewhere (weight-magnitude distribution is the next
+natural candidate to check).
 
-**(a) Effective-rank capacity-metric analysis on the Transformer**
-(Experiment 7's analog) — does effective rank predict the *magnitude* of
-the depth-graded gain found in Experiments 8–9, the way it did (r≈0.67) for
-the MLP's hidden layer? This is the more direct extension of this round's
-work and would test whether the *mechanism*, not just the *pattern*,
-transfers across architectures.
+Why this one: it's the direct, cheapest test of the specific hypothesis
+this round produced (reuses all existing Stage C-lite infrastructure,
+just needs a `use_residual`/`use_layernorm` toggle in
+`atlas_nn.stage_c_lite.model`), and it's a better use of the next research
+cycle than either (a) the still-open MLP input-layer question or (b)
+jumping to a real pretrained model — both remain valid follow-ups, but
+neither directly explains today's most interesting and specific new
+finding (the mechanism gap) the way this does.
 
-**(b) The MLP input-layer mystery** (flagged in Experiments 4, 6, and 7,
-never explained) — does its flat-to-negative post-training compressibility
-relate to how much of the input is task-relevant (2 of 32 dims for 2-XOR)
-rather than to capacity?
-
-Recommendation: **(a) first** — it's the more direct continuation of
-today's strongest finding (the depth gradient), reuses
-`atlas_nn.stage_b.capacity_metrics` unchanged (already architecture-
-agnostic, pure linear algebra on weight tensors), and would either
-strengthen the "effective rank explains it" story across architectures or
-reveal that the Transformer's depth gradient has a different underlying
-cause than the MLP's capacity story — informative either way. (b) remains
-next after that.
-
-**Standing recommendation, unchanged:** a real pretrained checkpoint is
-still the single most valuable possible upgrade to this research line if
-network policy allows it — everything in Experiments 8–9 is evidence
-*for* prioritizing that investment (the pattern is real and transfers),
-not a replacement for testing it directly.
+**Standing recommendation, unchanged:** a real pretrained checkpoint
+remains the single most valuable possible upgrade if network policy
+allows it. Today's finding makes this *more* valuable, not less — it
+shows the phenomenon is architecture-general but poorly understood
+mechanistically, which is exactly the situation where testing on a real
+model would be most informative rather than merely confirmatory.
