@@ -137,6 +137,57 @@ overhead at this matrix scale — a real limitation of that baseline's
 encoding, not evidence against the underlying finding (see
 `docs/RESEARCH_LOG.md` Experiment 4 for the full caveat).
 
+> **⚠ Update after Experiment 5 (robustness check):** this pattern **did
+> not reproduce** on a harder synthetic task (3-way parity) with the same
+> architecture — trained and random-init achieved the same or an
+> inconsistent best ratio across all 3 seeds and all 3 layers there (see
+> the OBSERVATION below and `docs/RESEARCH_LOG.md` Experiment 5). Read this
+> VERIFIED RESULT as scoped specifically to the easy 2-XOR task it was
+> measured on, not as a general property of "training" — the working
+> hypothesis is now that it reflects unused representational slack left by
+> an easy task relative to network capacity, not a general training effect.
+> Not re-labeled from VERIFIED RESULT to OBSERVATION because the original
+> measurement (on the 2-XOR task, multiseed) still stands as reproducible
+> and correct — what changed is how far the claim generalizes, not whether
+> it happened.
+
+---
+
+## OBSERVATION: the post-training compression-gain pattern did not reproduce on a harder task, and the "deeper network" robustness check was invalidated by a training-free architectural pathology
+
+**What was tested.** Same behavior-budgeted search as the result above,
+repeated in two conditions (`docs/RESEARCH_LOG.md` Experiment 5,
+`results/atlas_nn_stage_b_robustness_check.json`): (a) the identical
+3-Linear-layer architecture trained on a harder 3-way-parity task instead
+of 2-XOR; (b) a deeper 6-Linear-layer architecture trained on the original
+2-XOR task.
+
+**Harder task (valid comparison, negative result).** Across 3 seeds and 3
+layers, trained vs. random-init best-ratio-at-5%-error was identical in
+7/9 cases, and in the one seed where they differed on the early layers, the
+*random-init* network reached a higher ratio than the trained one (7.76 vs.
+5.22) — the opposite of the original pattern. No reliable post-training
+compression gain was found on this task, on any layer.
+
+**Deeper network (comparison invalidated, not negative — inconclusive).**
+The random-init 5-hidden-layer network turned out to be behaviorally
+degenerate at initialization: ~50% (chance) accuracy and a *constant
+prediction for every evaluation example* (output logit std 0.04–0.12 vs.
+22–34 once trained). Any "compression ratio" computed by perturbing an
+already-constant function is not measuring what this experiment intended
+to measure, so this condition's numbers are excluded from interpretation.
+This is itself a useful, reproducible finding, now documented as a caution
+in `atlas_nn.stage_b.model.build_mlp`'s docstring: stacking ~5 unnormalized
+ReLU layers with plain PyTorch default init collapses signal at random
+init, at this width/scale.
+
+**Why this is here rather than silently discarded.** Per mission section
+11 ("attempt to falsify the hypothesis... a negative result is useful"),
+this is exactly the kind of check that should be run and reported, whether
+or not it confirms the earlier finding. It directly narrows the earlier
+VERIFIED RESULT's claimed scope rather than contradicting its original
+measurement.
+
 ---
 
 ## OBSERVATION: k-means dictionary fitting is not perfectly reliable at small dictionary sizes

@@ -312,4 +312,76 @@ either state, at any tested `k` — a real, consistent failure, not
 cherry-picked away. Not every method benefits from training's added
 robustness; this one appears too lossy for this task/threshold regardless.
 
+**Next experiment.** Check whether the depth-dependent post-training
+compression pattern is a general property of training, or an artifact of
+this one easy task/architecture, before investing further.
+
+---
+
+## Experiment 5 — Robustness check: does the pattern survive a harder task or a deeper network?
+
+**Hypothesis.** Experiment 4's finding (post-training compression headroom
+rises ~1.5–2× on deeper layers, not on the input layer) should reproduce
+qualitatively on (a) the same architecture trained on a harder synthetic
+task, and (b) a deeper architecture trained on the original task — if it's
+a real property of training rather than an artifact of one easy setup.
+
+**Method.** `experiments/run_atlas_nn_stage_b_robustness_check.py`, same
+behavior-budgeted search as Experiment 4 (5% relative-logit-error bar),
+3 seeds, two conditions:
+- **harder_task_parity3**: identical 3-Linear-layer architecture, trained
+  on 3-way parity (XOR of 3 coordinate signs, `n_features=8`) instead of
+  2-XOR — a genuinely harder task (a plain 2-hidden-layer/64-unit MLP
+  trained on 3-parity with 32 noise dims failed to generalize at all,
+  ~55% held-out accuracy despite 100% train accuracy; reducing to 8
+  features made it learnable, 94–97% held-out accuracy).
+- **deeper_net_xor2**: 6-Linear-layer architecture (5 hidden layers, same
+  64-unit width), trained on the original 2-XOR task.
+
+**Result A (harder_task_parity3): the pattern does not reproduce.** Across
+all 3 layers and 3 seeds, trained and random-init best-ratio-at-threshold
+were **identical** in 7 of 9 layer×seed combinations (e.g. layer 0: 5.22
+for both states, seeds 11 and 22). Where they differed, the direction was
+inconsistent: seed 11/22 showed a modest gain on the output layer only
+(4.92 → 7.11); seed 33 showed random-init **beating** trained on layers 0
+and 2 (7.76/7.97 vs. 5.22/5.32) — the opposite of Experiment 4's direction.
+There is no reliable post-training compression gain on this harder task, on
+any layer, in this data.
+
+**Result B (deeper_net_xor2): the comparison is invalid as designed, for a
+different reason.** The raw numbers looked dramatic — random-init ratios of
+up to 64.0×, often exceeding the trained network's ratio — but investigating
+why revealed the random-init 5-hidden-layer network is **degenerate**:
+accuracy ~50% (chance) and, critically, `unique_argmax=1` — it predicts the
+*same class for every single evaluation example*, with output logit std
+0.04–0.12 (vs. 22–34 once trained). This is a vanishing-signal collapse from
+stacking 5 unnormalized ReLU layers with plain PyTorch default init, not a
+compression result. `relative_logit_error` against an already-constant,
+meaningless output is measuring "how much does the perturbation change a
+degenerate function," which is uninformative — any large ratio computed
+against this baseline should not be trusted. **This condition's numbers are
+reported for transparency but explicitly excluded from any comparison
+claim.** See the caution now documented in `atlas_nn.stage_b.model.build_mlp`'s
+docstring.
+
+**Interpretation.** This substantially revises confidence in Experiment 4's
+finding. The most coherent explanation available: Experiment 4's original
+2-XOR task is so easy relative to the network's capacity (100% train
+accuracy reached quickly, wide margin) that training leaves a lot of unused
+representational slack, which shows up as extra post-training compression
+headroom. On the harder 3-parity task, the network has to use more of its
+capacity to solve the problem correctly, leaving less slack — and the
+compression-gain effect disappears. This is a **plausible hypothesis**, not
+a verified one; distinguishing "training creates general compressibility"
+from "an easy task leaves more unused capacity, which looks like
+compressibility" is exactly the kind of confound the mission's
+falsification discipline (section 11) exists to catch, and this experiment
+caught it.
+
+**Falsification value.** This is precisely why Experiment 4's claim was
+scoped narrowly in `docs/BEST_RESULTS.md` ("one small architecture, one
+synthetic XOR task... not yet checked... at other thresholds, a real
+dataset, or larger networks") rather than generalized. That scoping is now
+justified by direct evidence, not just caution.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

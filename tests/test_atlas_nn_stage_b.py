@@ -7,7 +7,7 @@ torch = pytest.importorskip("torch")
 import numpy as np
 
 from atlas_nn.baselines.low_rank import svd_low_rank
-from atlas_nn.stage_b.dataset import make_xor_dataset
+from atlas_nn.stage_b.dataset import make_parity_dataset, make_xor_dataset
 from atlas_nn.stage_b.experiment import run_layer_experiment
 from atlas_nn.stage_b.model import build_mlp, get_weight, linear_layer_names, set_weight
 from atlas_nn.stage_b.train import evaluate, load_snapshot, snapshot, train_mlp
@@ -19,10 +19,35 @@ def test_xor_dataset_is_balanced_and_not_linearly_trivial():
     assert 0.3 < y.mean() < 0.7
 
 
+def test_parity_dataset_is_balanced():
+    x, y = make_parity_dataset(1000, n_features=8, k=3, seed=1)
+    assert x.shape == (1000, 8)
+    assert 0.3 < y.mean() < 0.7
+
+
+def test_parity_dataset_rejects_k_below_two():
+    with pytest.raises(ValueError):
+        make_parity_dataset(10, n_features=8, k=1, seed=1)
+
+
 def test_build_mlp_has_three_linear_layers():
     model = build_mlp(seed=1, input_dim=32)
     names = linear_layer_names(model)
     assert len(names) == 3
+
+
+def test_build_mlp_supports_configurable_depth():
+    model = build_mlp(seed=1, input_dim=8, n_hidden_layers=5)
+    names = linear_layer_names(model)
+    assert len(names) == 6  # 5 hidden + 1 output
+    # shapes: input->hidden, hidden->hidden (x4), hidden->output
+    assert tuple(get_weight(model, names[0]).shape) == (64, 8)
+    assert tuple(get_weight(model, names[-1]).shape) == (2, 64)
+
+
+def test_build_mlp_rejects_zero_hidden_layers():
+    with pytest.raises(ValueError):
+        build_mlp(seed=1, input_dim=8, n_hidden_layers=0)
 
 
 def test_training_improves_accuracy_over_random_init():
