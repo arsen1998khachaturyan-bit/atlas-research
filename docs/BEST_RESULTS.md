@@ -367,7 +367,9 @@ artifact of the MLP/XOR setup everything else was built on.
 **Caveats.** (1) This experiment used fixed compression parameters, not a
 behavior-budgeted ratio search — there's no "Nx achievable compression"
 headline number from this result, only the tensor-vs-behavior error gap
-(analogous to Experiment 3, not Experiment 4/6). (2) The tiny classifier
+(analogous to Experiment 3, not Experiment 4/6). **Resolved by Experiment
+9, next entry below** — the budget-search version confirms the same
+depth gradient as an actual achievable-ratio number. (2) The tiny classifier
 head (2×64, 512 bytes) reproduces the exact same overhead pathology found
 in Stage B (`atlas_block_dict16_res4bit` gives ratio 0.21 — net expansion)
 — consistent, not new, but confirms that finding isn't MLP-specific either.
@@ -377,6 +379,43 @@ dataset," which remains blocked by this session's network policy
 (`huggingface.co` returns 403 from the egress proxy; confirmed via
 `curl $HTTPS_PROXY/__agentproxy/status`, not retried or routed around per
 the proxy's own policy).
+
+---
+
+## VERIFIED RESULT: achievable compression ratio at matched quality deepens with Transformer block depth, mirroring the MLP capacity pattern on a real task
+
+**Claim.** At a fixed 5% behavioral-error bar, mean achievable compression
+ratio (3 seeds) rises from 9.7–14.2× (random-init) to 14.2–42.7× (trained)
+across the Stage C-lite Transformer's 7 Linear layers, and the *size* of
+that gain grows with depth: block 0 layers gain 1.5×–3.1× from training,
+block 1 layers gain 3.0×–4.4×, consistently across all three matched
+layer-type pairs (attention-output, FFN-in, FFN-out). Trained block-1
+layers reach ~32–43× compression at matched quality — more than 3× what
+those same layers support pre-training, and more than block 0 reaches even
+after training.
+
+**How verified.** `experiments/run_atlas_nn_stage_c_lite_budget_search.py`,
+same 3 seeds, same 5% `relative_logit_error` bar as Experiments 4/6.
+Reproduce with `python -m experiments.run_atlas_nn_stage_c_lite_budget_search`
+(writes `results/atlas_nn_stage_c_lite_budget_search.json`).
+
+**Relationship to the previous entry.** This is the quantitative
+(achievable-ratio) counterpart to the qualitative (tensor-vs-behavior-error)
+finding immediately above — same experiment family, same model, same
+seeds, converted from "how much does behavioral error drop" into "how much
+more can we actually compress." SVD becomes the dominant winning method
+for trained block-1 layers (8 of 9 cases), consistent with Experiment 7's
+finding that SVD is the baseline most sensitive to training-induced
+effective-rank changes — now observed on a second architecture.
+
+**Caveat.** The exact gain multipliers here (1.5×–4.4×) are smaller than
+Experiment 8's raw relative-logit-error gains (3.5×–22.7×) because
+`run_budget_search` only evaluates a fixed, discrete parameter grid per
+method (e.g. SVD ranks 1/2/4/8/16/32/64) — a real improvement that doesn't
+cross the next grid point isn't reflected in the achievable ratio. The
+direction and per-layer ordering are unaffected; the reported multipliers
+should be read as a conservative lower bound on the underlying effect
+size, not a precise measurement of it.
 
 ---
 

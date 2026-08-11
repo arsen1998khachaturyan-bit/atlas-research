@@ -628,4 +628,71 @@ here, only the tensor-vs-behavior error gap. Running the budget-search
 machinery (already architecture-agnostic after this experiment's
 refactor) on this model is a natural, low-cost follow-up.
 
+**Next experiment.** Turn Experiment 8's qualitative tensor-vs-behavior gap
+into the same quantitative "achievable ratio at matched quality" number
+Experiments 4/6 produced for the MLP, and check whether it deepens with
+Transformer block depth the way the raw robustness gain did.
+
+---
+
+## Experiment 9 — Stage C-lite budget search: does achievable compression ratio deepen with Transformer block depth?
+
+**Hypothesis.** Given Experiment 8's finding that behavioral robustness to
+weight-compression error grows sharply with depth (block 1 gains
+15.7–22.7× vs. block 0's 3.5–4.9×, at fixed compression parameters), the
+*achievable compression ratio* at a fixed 5% behavioral-error bar
+(Experiment 4/6's methodology) should also be higher for block 1 layers
+than block 0 layers, and higher for trained than random-init weights
+throughout.
+
+**Method.** `experiments/run_atlas_nn_stage_c_lite_budget_search.py`.
+`atlas_nn.stage_b.budget_search.run_budget_search` (unchanged, reused
+as-is per the Experiment 8 refactor) applied to all 7 Linear layers of the
+Stage C-lite Transformer, 3 seeds, 5% relative-logit-error bar.
+
+**Result — confirmed, with a real quantitative depth gradient (mean
+best-ratio-at-threshold over 3 seeds):**
+
+| layer | random-init ratio | trained ratio | gain |
+|---|---|---|---|
+| block 0 attn out_proj | 9.7 | 14.2 | 1.5× |
+| block 0 linear1 (FFN) | 11.5 | 25.9 | 2.3× |
+| block 0 linear2 (FFN) | 9.8 | 30.2 | 3.1× |
+| block 1 attn out_proj | 10.6 | 32.0 | 3.0× |
+| block 1 linear1 (FFN) | 14.2 | 42.7 | 3.0× |
+| block 1 linear2 (FFN) | 9.8 | 42.7 | **4.4×** |
+| classifier (head) | 4.9 | 10.4 | 2.1× |
+
+Block 1's mean gain (≈3.5×) is clearly and consistently higher than block
+0's (≈2.3×) across all three layer types (attention-output, FFN-in,
+FFN-out) — the same depth-gradient direction Experiment 8 found via
+behavioral error alone, now expressed as an actual achievable-compression-
+ratio number: trained block-1 layers reach ~32–43× compression at the 5%
+quality bar, more than 3× what the same layers support before training,
+and more than what block 0 supports even after training (14–30×).
+
+**Why the numeric gap is smaller than Experiment 8's raw robustness-gain
+numbers (up to 22.7×).** `run_budget_search` only evaluates a fixed,
+discrete parameter grid per method family (e.g. SVD ranks
+1/2/4/8/16/32/64, not a continuous sweep), so the *achievable ratio* moves
+in coarse jumps — a real error reduction that doesn't cross the next
+discrete grid point doesn't show up as a higher ratio. The direction and
+relative ordering between layers is unaffected by this, but the exact
+multiplier is a coarser, conservative estimate of the underlying effect
+size compared to Experiment 8's continuous relative-logit-error numbers.
+
+**SVD becomes the dominant method for trained block-1 layers** (winning in
+8 of 9 trained-block-1 cases across seeds, at or near the largest tested
+rank) — consistent with Experiment 7's MLP finding that SVD is the method
+most sensitive to whatever training changes about a layer's effective
+rank, now observed on a second architecture.
+
+**Interpretation.** This closes the gap Experiment 8 flagged: the
+Transformer's behavioral-robustness effect is not just a tensor-vs-
+behavior-error curiosity, it translates into materially more achievable
+compression at matched quality, and the amount of that translation
+increases with depth — on a real task, a real (if small) attention-based
+architecture, reproducing the same qualitative pattern found across
+Experiments 4–7 on an entirely different architecture and task family.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
