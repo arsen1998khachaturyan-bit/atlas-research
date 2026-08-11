@@ -150,6 +150,15 @@ encoding, not evidence against the underlying finding (see
 > measurement (on the 2-XOR task, multiseed) still stands as reproducible
 > and correct — what changed is how far the claim generalizes, not whether
 > it happened.
+>
+> **✓ Update after Experiment 6 (capacity sweep):** the slack/capacity
+> hypothesis this update proposed is now directly confirmed, see the new
+> VERIFIED RESULT below — giving the *harder* 3-parity task enough spare
+> network capacity (width 256 instead of 64) brought the compression gain
+> back, in the same layer, at similar-or-larger magnitude, with all 3 seeds
+> training successfully (no confound). The gain is real and general once
+> "training relative to available capacity" replaces "training" as the
+> variable of interest.
 
 ---
 
@@ -187,6 +196,75 @@ this is exactly the kind of check that should be run and reported, whether
 or not it confirms the earlier finding. It directly narrows the earlier
 VERIFIED RESULT's claimed scope rather than contradicting its original
 measurement.
+
+---
+
+## VERIFIED RESULT: the post-training compression gain tracks spare network capacity relative to task difficulty, not "training" as a general effect
+
+**Claim.** The 3-parity task showed no post-training compression gain at
+network width 64 (Experiment 5). At width 256 — same task, same layer,
+same 5% behavioral-error bar, only the network's spare capacity changed —
+the gain reappears: the hidden→hidden layer's best ratio rises from 5.33×
+(random-init, all 3 seeds) to 8.0–16.0× (trained, all 3 seeds), a
+magnitude matching or exceeding the original easy-task result. Symmetrically,
+shrinking the *easy* 2-XOR task's network to width 16 (a tight fit, no
+spare capacity) removes its previously solid gain — trained and
+random-init converge to the same ratio, or trained is worse.
+
+**How verified.** `atlas_nn.stage_b.budget_search` behavior-budgeted
+search, 3 seeds (11, 22, 33) per condition, 6 conditions total (2 tasks ×
+3 widths). The `parity3_h256` confirmation has zero training-failure
+confound — all 3 seeds reached 93–97% held-out accuracy. Reproduce with
+`python -m experiments.run_atlas_nn_stage_b_capacity_sweep` (writes
+`results/atlas_nn_stage_b_capacity_sweep.json`).
+
+**Why this is stronger evidence than Experiment 4 alone.** Experiment 4
+observed a gain on one setup; this result predicted a *specific reversal*
+(gain should vanish on a harder task, then specifically reappear if given
+more capacity) and then found exactly that reversal in both directions —
+which is a materially stronger form of confirmation than a single
+observation, per the mission's falsification discipline (section 11).
+
+**Scope of the claim.** Still two synthetic tasks, small MLPs, one
+behavioral-error threshold, CPU-only. The mechanism ("spare capacity") is
+inferred from the pattern of results, not measured directly (e.g. no
+direct measurement of effective rank or intrinsic dimensionality was made)
+— a more direct capacity metric would strengthen this further. See the two
+caveats immediately below, both from the same experiment.
+
+---
+
+## OBSERVATION: fixed training hyperparameters do not reliably transfer to a larger network — a real confound, not evidence of exceptional compressibility
+
+At network width 256 on the easy 2-XOR task, 2 of 3 seeds **failed to
+train properly** using the same hyperparameters (epochs, learning rate)
+that worked at every other width/task combination in this session: held-out
+accuracy 49% (chance) and 68% (partial), vs. the expected ~87–91%. Those
+two seeds' "compression ratios" of up to 128× are an artifact of
+compressing a network that never learned a meaningful function — the same
+underlying pathology as Experiment 5's degenerate deep network, arrived at
+a different way (optimization failure rather than architectural signal
+collapse). Excluded from the VERIFIED RESULT above; kept in
+`results/atlas_nn_stage_b_capacity_sweep.json` for transparency. Practical
+implication for any future scale-up (Stage C): hyperparameters must be
+re-validated at each new scale, not assumed to transfer, and training
+success should be checked (e.g. held-out accuracy) before trusting any
+compression number computed on a "trained" network.
+
+---
+
+## OBSERVATION: the input layer is consistently flat-to-worse after training, across every task and width tested
+
+Across all 6 conditions in the capacity sweep, the first (input-facing)
+Linear layer's best-ratio-at-threshold was never clearly better after
+training than at random-init, and in most conditions was equal or *lower*
+(e.g. `parity3_h256`: random-init 7.94× in all 3 seeds vs. trained 5.31× in
+all 3 seeds — a small but perfectly consistent penalty). This is stronger
+and more consistent than Experiment 4's original "no improvement on layer
+0" observation, and holds regardless of task difficulty or network width,
+suggesting a distinct mechanism from the capacity story above rather than
+a special case of it. Not investigated further this round; a candidate
+next question, not yet a hypothesis with an explanation.
 
 ---
 

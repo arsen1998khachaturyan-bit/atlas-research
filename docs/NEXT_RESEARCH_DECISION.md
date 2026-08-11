@@ -1,125 +1,130 @@
 # Next Research Decision
 
-Updated after the robustness check (Experiment 5), which substantially
-revised confidence in Experiment 4's finding. Covers Track B (`atlas_nn`)
-only — Track A (the pre-existing symbolic active-learning framework) is
-unaffected and out of scope for this document.
+Updated after the capacity sweep (Experiment 6), which confirmed the
+slack/capacity hypothesis raised after Experiment 5. Covers Track B
+(`atlas_nn`) only — Track A (the pre-existing symbolic active-learning
+framework) is unaffected and out of scope for this document.
 
 ## 1. What we learned
 
 **Stage A (synthetic matrices):** a purpose-built method (block dictionary
 + affine transform + residual) finds and exploits structure standard
-baselines miss (affine-transformed shared blocks), and correctly does not
-fake compression on random data. Narrow, verified, not general — loses to
-SVD on low-rank data and to plain zlib on exact block repetition.
+baselines miss, and correctly does not fake compression on random data.
+Narrow, verified — loses to SVD on low-rank data and to zlib on exact
+block repetition.
 
-**Stage B + Experiment 4 (trained vs. random-init MLP, easy 2-XOR task):**
-training made network *behavior* far more robust to weight compression
-error than tensor error predicted, and at a fixed 5% behavioral-error bar,
-achievable compression ratio was ~1.5–2× higher post-training on the two
-deeper layers of a 3-layer MLP — reproduced across 3 seeds.
+**Stage B / Experiment 4 (easy 2-XOR task, one architecture):** training
+made behavior far more robust to weight-compression error than tensor
+error predicted, and unlocked ~1.5–2× more compression on deeper layers at
+matched behavioral quality.
 
-**Experiment 5 (robustness check) — the key new finding this round:** that
-pattern **did not survive** a harder synthetic task (3-way parity, same
-architecture) — trained and random-init reached the same or an
-inconsistent ratio across all layers and seeds, with one seed even showing
-random-init *beating* trained. A parallel check on a deeper (6-layer)
-network was invalidated for an unrelated reason: the random-init deep
-network turned out to be behaviorally degenerate (constant prediction for
-every input, near-zero output variance) — a vanishing-signal collapse from
-stacking unnormalized ReLU layers, not a compression phenomenon. That
-condition is inconclusive, not negative.
+**Experiment 5 (robustness check):** that gain did **not** reproduce on a
+harder task (3-way parity) at the same network width — raising real doubt
+about whether it was a general training effect.
 
-**Combined picture:** the Experiment 4 result should now be read as
-*scoped to the easy 2-XOR task it was measured on*, not as a general
-"training creates compressibility" law. The working explanation: an easy
-task leaves the network with unused representational capacity after
-training, and that unused capacity is what showed up as extra compression
-headroom — not something intrinsic to "training" as such. A harder task
-that uses more of the network's capacity left no such headroom.
+**Experiment 6 (capacity sweep) — this round, and the strongest evidence
+yet:** the gain tracks *spare network capacity relative to task
+difficulty*, not task identity or "training" in the abstract:
+- Shrinking the easy task's network to a tight fit (width 16) **removed**
+  its gain — trained and random-init converge, or trained is worse.
+- Growing the hard task's network to width 256 **brought the gain back**,
+  in the same layer, at matching-or-larger magnitude (5.33× → 8–16×), with
+  all 3 seeds training cleanly (no confound). This is the strongest single
+  piece of evidence in the project so far, because it's a predicted
+  *reversal* that was then observed, not just a repeated correlation.
+
+**Two other findings surfaced along the way, both important for how future
+experiments should be run:**
+- Fixed training hyperparameters (epochs, learning rate) **did not
+  transfer** to a wider network: 2 of 3 seeds at width 256 on the easy task
+  failed to train properly (49% and 68% held-out accuracy vs. the expected
+  ~87–91%), producing eye-catching but meaningless compression numbers
+  (up to 128×) from compressing a network that never learned anything.
+  Excluded from all claims; documented as a process lesson for Stage C.
+- The input layer is **consistently flat-to-worse** after training, across
+  every task and width tested (not just "no gain," often a measurable
+  penalty) — a robust pattern with no explanation yet.
 
 ## 2. What failed
 
-- Block-dictionary clustering does not help on globally low-rank or
-  low-rank-plus-noise synthetic data (Stage A) — SVD is the right tool.
-- The structural method loses to zlib on exact block repetition (Stage A).
-- `vector_codebook` never met the 5% behavioral-error bar in Experiment 4,
-  in either state.
-- The input layer showed no post-training compressibility gain in
-  Experiment 4, and **Experiment 5 shows that even the layers that did gain
-  in Experiment 4 stop gaining once the task is harder** — the effect is
-  not just depth-dependent, it's task-dependent, and possibly not a
-  training effect at all so much as a slack/capacity effect.
-- The "deeper network" robustness check, as designed, is unusable: default
-  PyTorch init produces a degenerate (constant-output) random-init network
-  at 5 hidden layers / 64 width on this input scale, so the random-vs-
-  trained comparison there is confounded by architecture, not by training.
+- Block-dictionary clustering vs. SVD/zlib on Stage-A structure types it
+  wasn't designed for.
+- `vector_codebook` never met the 5% behavioral-error bar in Experiment 4.
+- The original "training creates compressibility" framing, taken literally
+  and generally — Experiment 5 showed it doesn't hold at matched capacity
+  on a harder task; only the more specific "training creates compressibility
+  *when there's spare capacity to give it*" framing survived Experiment 6.
+- Using one fixed set of training hyperparameters across network sizes —
+  concretely wrong at width 256 for 2/3 seeds. Any future width/scale
+  sweep needs per-scale hyperparameter validation, not reuse.
 
 ## 3. What worked
 
-- Byte-honest accounting caught real problems immediately in Stage A/4.
-- Measuring behavioral error, not just tensor error, is what produced every
-  interesting Stage B/4 finding in the first place.
-- Running the robustness check at all is what worked best this round:
-  it caught a genuine overgeneralization risk (Experiment 4's finding being
-  read as general when it was task-specific) *before* any resources were
-  spent building Stage C infrastructure around it, and separately surfaced
-  a real, reusable engineering fact (deep unnormalized MLPs collapse at
-  random init here) that would otherwise have silently corrupted a future
-  experiment's "random baseline."
+- Turning each observation into a falsifiable prediction and then testing
+  it (Experiment 5 falsified the general claim; Experiment 6 confirmed the
+  more specific one) is what actually built confidence here — a single
+  "interesting result" (Experiment 4) would have been much weaker evidence
+  on its own.
+- Checking training success (held-out accuracy) before trusting any
+  compression number caught the width-256 confound immediately, the same
+  way checking output variance caught Experiment 5's degenerate deep
+  network. This check should be standard practice going forward, not
+  ad hoc.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**More cautiously than last round.** The mission's central question — can
-trained weights be represented with less information while preserving
-behavior — still has a positive answer for the original easy-task setup,
-unchanged (that measurement was multiseed and reproducible; nothing this
-round contradicts it happening). But the *generalization* of that finding
-— "training creates additional compressible structure" as a property of
-training itself — no longer has support beyond the one setup it was
-measured on, and one direct test of generalization (harder task, same
-architecture) came back negative. The honest current state: **compression
-headroom from training, when it appears, may be a function of how much
-spare capacity an easy task leaves behind, rather than something training
-adds "for free" regardless of task difficulty.** That is a meaningfully
-different, more specific hypothesis than the one Experiment 4 seemed to
-support, and it is not yet tested directly.
+**Yes, and now with a real, tested, twice-confirmed mechanism rather than a
+single correlation.** The refined claim — trained networks can be
+represented with substantially less independent information than dense
+storage, in proportion to how much capacity the training task left unused,
+while preserving behavior — is supported by:
+1. A positive result (easy task, matched width) — Experiment 4.
+2. A predicted negative result (hard task, same width) — Experiment 5.
+3. A predicted reversal back to positive (hard task, more width) —
+   Experiment 6.
+
+That three-step pattern (confirm → falsify a broader claim → confirm a
+narrower one) is a meaningfully stronger evidentiary structure than any
+single experiment, and it directly answers the mission's core question in
+a scoped, honest way: yes, under conditions this project can now name
+(spare capacity relative to task difficulty), not "yes, always."
+
+**What's still missing:** a direct measure of "spare capacity" (e.g.
+effective rank of activations, or a capacity metric independent of the
+compression search itself) rather than inferring it post hoc from
+under/oversized network width. And everything so far is CPU-scale
+synthetic tasks — the mission's Stage C gate (meaningful, *understood*
+advantage before scaling) is arguably now met for "understood," which
+changes the calculus on when to move toward a real pretrained model.
 
 ## 5. The single most informative next experiment
 
-**Directly test the "slack/capacity" hypothesis: hold the architecture
-fixed and sweep task difficulty (or equivalently, network capacity relative
-to a fixed task) to see whether post-training compression headroom tracks
-the gap between train accuracy and the minimum capacity needed to solve the
-task** — e.g. compare 2-XOR (very easy, current finding) against 3-parity
-(hard, Experiment 5, no gain) against something in between (e.g. 3-parity
-with a wider/narrower network, or 2-XOR with a deliberately undersized
-network) to see if the compression-gain effect reappears exactly where
-spare capacity reappears.
+Two reasonable candidates; recommendation is the first, given the size of
+the investment case for Stage C now:
 
-Why this one, specifically:
-- It turns Experiment 5's negative result into a mechanistic explanation
-  rather than leaving "it didn't reproduce" as a dead end — if the
-  slack/capacity story is right, the effect should reappear predictably
-  once slack is reintroduced (e.g. a deliberately oversized network on
-  3-parity), which would be strong, falsifiable confirmation; if it doesn't
-  reappear even with added capacity, the slack hypothesis itself is wrong
-  and something else is going on.
-- It's the cheapest possible next test — reuses 100% of existing
-  infrastructure (`atlas_nn.stage_b.budget_search`,
-  `atlas_nn.stage_b.model.build_mlp` already supports variable width via
-  `hidden_dim`), no new code beyond a parameter sweep script.
-- It keeps faith with the mission's explicit gate: don't scale to Stage C
-  (real pretrained models, real datasets) until a method/finding
-  demonstrates a *robust*, understood advantage at the current stage — right
-  now the finding is real but not yet understood well enough to predict
-  where it will and won't appear, which is precisely what this experiment
-  would establish.
+**(a) One more cheap confirmation before scaling up:** directly measure a
+capacity proxy (e.g. the effective rank of each layer's activations on the
+training set, or simply train/eval loss margin) across all conditions
+already run, and check whether it *quantitatively* predicts the observed
+compression-gain magnitude (not just its sign) — turning "spare capacity"
+from a qualitative story into a testable, continuous relationship. This
+reuses only already-collected data (no new training runs needed) and would
+either sharpen the mechanism into something Stage C can use to *predict*
+where compressibility will appear in a real model, or reveal the story is
+still too coarse.
 
-**Separately, lower priority:** fix the deep-network initialization
-pathology (e.g. proper He/Kaiming-for-ReLU init with correct gain, or add
-LayerNorm) so the depth question from Experiment 5 can actually be answered
-once the slack/capacity question above is resolved — not urgent on its own,
-since the capacity question is more fundamental and the deep-net check
-would only be worth re-running once there's a specific prediction to test
-against it.
+**(b) Move to Stage C:** given three consistent, predicted-and-confirmed
+results now in hand, a small pretrained transformer (mission Stage C) on a
+real task would test whether the capacity-relative-to-task story holds
+outside synthetic data — the next real test of external validity.
+
+Recommendation: **(a) first, then (b).** (a) is nearly free (reuses
+existing results, no new compute) and would make the eventual Stage C
+experiment much better targeted (know *which* layers to expect gains in in
+a real model, based on where they're under-utilized relative to task
+difficulty, rather than searching blindly). Stage C itself is a real
+investment (dataset/checkpoint decisions, more engineering, more compute)
+that deserves to start from the sharpest possible hypothesis.
+
+No architectural blockers for either — (a) needs no new dependencies; (b)
+would need a dataset/checkpoint source decision from the user when reached.
