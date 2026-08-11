@@ -174,11 +174,24 @@ it required creating a new module rather than modifying Track A, per the
 
 See `docs/RESEARCH_LOG.md` for the experiment-by-experiment log and
 `docs/BEST_RESULTS.md` / `docs/NEXT_RESEARCH_DECISION.md` for verified
-results and next steps. As of this update, both Stage A (synthetic
-matrices) and Stage B (trained-vs-random-init small MLP, `atlas_nn/stage_b/`)
-have been implemented and run; `torch` (CPU) was added as the
-`stage_b` optional dependency (`pip install -e ".[stage_b]"`) specifically
-for Stage B — Stage A remains numpy-only.
+results and next steps. As of this update, Stage A (synthetic matrices),
+Stage B (trained-vs-random-init small MLP, `atlas_nn/stage_b/`, including
+a behavior-budgeted compression search and a capacity-sweep/effective-rank
+analysis), and Stage C-lite (a small Transformer trained from scratch on a
+real sentiment task, `atlas_nn/stage_c_lite/`) have all been implemented
+and run; `torch` (CPU) was added as the `stage_b` optional dependency
+(`pip install -e ".[stage_b]"`) — Stage A remains numpy-only.
+
+**Note on Stage C-lite:** mission Stage C calls for a "manageable open
+pretrained model." This session's network policy blocks `huggingface.co`
+(403, confirmed via the egress proxy's own status endpoint) so a literal
+pretrained checkpoint isn't reachable here; per the user's choice,
+`atlas_nn/stage_c_lite/` is an agreed substitute — a genuinely different
+(attention-based) architecture on a real (self-authored) text task, not a
+pretrained model. See `docs/RESEARCH_LOG.md` Experiment 8 for what this
+did and didn't establish, and `docs/NEXT_RESEARCH_DECISION.md` for the
+standing recommendation to prioritize a real pretrained-model source if
+one becomes reachable.
 
 ### Design constraints adopted for Track B
 

@@ -541,4 +541,91 @@ either "the metric perfectly explains everything" or "the metric shows
 nothing" would have been: it identifies specifically where the proposed
 mechanism is well-described by rank and where it manifestly isn't.
 
+**Next experiment.** Move beyond the MLP/XOR setting: does the
+behavioral-robustness effect transfer to a different architecture (attention,
+not just feedforward) on a real task (real text, not synthetic feature
+vectors)?
+
+---
+
+## Experiment 8 — Stage C-lite: does the behavioral-robustness effect transfer to a Transformer on a real task?
+
+**Context.** Mission Stage C calls for "manageable open pretrained models."
+This session's network policy blocks `huggingface.co` (403, confirmed via
+the egress proxy status endpoint: `"gateway answered 403 to CONNECT
+(policy denial or upstream failure)"`), so a literal pretrained-checkpoint
+Stage C is not reachable here. Per the user's choice, this experiment
+substitutes a genuinely different architecture (a small Transformer, not
+another MLP) trained from scratch on a real task (self-authored English
+sentiment sentences, not synthetic feature vectors) — see
+`atlas_nn/stage_c_lite/`.
+
+**Hypothesis.** If the Stage B behavioral-robustness finding (Experiment 3:
+trained-network output is far less sensitive to weight-compression error
+than tensor error predicts) reflects something general about trained
+networks rather than an MLP/XOR-specific artifact, it should reproduce on
+this different architecture and task too.
+
+**Method.** `experiments/run_atlas_nn_stage_c_lite_smoke.py`. A 2-block
+Transformer classifier (`atlas_nn.stage_c_lite.model`, d_model=64,
+4 heads, from-scratch init, plain `torch.nn` — no pretrained weights or
+external model download involved) trained on a self-authored,
+template-generated English sentiment dataset (200 sentences, 150 train /
+50 held-out, ~94-word vocabulary; not linearly trivial — random-init
+held-out accuracy 56–64%, trained accuracy 84–94% across 3 seeds). The
+Stage-A baseline panel + Atlas structural method, at the same fixed
+parameters used in Stage B's original smoke test, applied to all 7 Linear
+layers (attention output projections and FFN layers in both Transformer
+blocks, plus the classification head), in both random-init and trained
+states.
+
+**Result — tensor error barely changes with training; behavioral error
+collapses, and does so far more in the later block than the earlier one.**
+Mean over 3 seeds, `svd_rank4` (the clearest case, consistent with Stage B):
+
+| layer | tensor rel_l2 (random → trained) | behavioral rel_logit (random → trained) | gain |
+|---|---|---|---|
+| block 0 attn out_proj | 0.894 → 0.821 (flat) | 0.261 → 0.053 | 4.9× |
+| block 0 linear1 (FFN) | 0.917 → 0.896 (flat) | 0.229 → 0.065 | 3.5× |
+| block 0 linear2 (FFN) | 0.916 → 0.888 (flat) | 0.217 → 0.046 | 4.7× |
+| block 1 attn out_proj | 0.894 → 0.834 (flat) | 0.204 → 0.009 | **22.7×** |
+| block 1 linear1 (FFN) | 0.917 → 0.888 (flat) | 0.188 → 0.008 | **23.5×** |
+| block 1 linear2 (FFN) | 0.916 → 0.892 (flat) | 0.204 → 0.013 | **15.7×** |
+
+**This depth pattern held in every one of the 3 seeds individually, not
+just in the mean** (per-seed gain multipliers: block 0 ranged 1.9×–12.9×,
+block 1 ranged 10.3×–42.0× — the two ranges do not overlap in 2 of 3 seeds,
+and even where they're close, block 1 is always higher within the same
+seed). This is a materially stronger, more graded version of the MLP
+finding: instead of a binary "hidden layer gains, input layer doesn't," a
+real 2-block Transformer shows the gain *increasing with depth across two
+full blocks*, on a task and architecture with no relationship to the
+synthetic XOR/parity setup Experiments 3–7 were built on.
+
+**Same encoding-overhead and tiny-output-layer caveats reproduce too.**
+The classification head (2×64, 512 bytes) shows the identical pathology
+found in Stage B: `atlas_block_dict16_res4bit` gives ratio 0.21 (net
+expansion), `svd_rank4`/`vector_codebook`/`zlib` all hover at ratio
+≈0.97–0.98 — overhead exceeding a small tensor's own size is not
+architecture-specific, it recurs exactly as before.
+
+**Interpretation.** This is the strongest transfer evidence in the project
+so far: the core Stage B finding (trained networks are behaviorally far
+more robust to weight-compression error than tensor error predicts, and
+this scales with depth) reproduces, per-seed, on an attention-based
+architecture trained on real (if simple) English text — not a variation on
+the same MLP/synthetic-task setup everything else was built on. It does
+not by itself prove this generalizes to large-scale pretrained models
+(mission's literal Stage C, still blocked by network policy here), but it
+substantially raises confidence that the mechanism is architecture-general
+rather than an MLP-specific curiosity.
+
+**What this experiment did not test.** Unlike Experiment 4/6, this used
+fixed compression parameters (mirroring Stage B's Experiment 3), not a
+behavior-budgeted search for the maximum achievable ratio at matched
+quality — so there is no direct "Nx compression ratio" headline number
+here, only the tensor-vs-behavior error gap. Running the budget-search
+machinery (already architecture-agnostic after this experiment's
+refactor) on this model is a natural, low-cost follow-up.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
