@@ -861,4 +861,75 @@ its own predecessor's result (Experiment 10's specific correlation
 number) as statistically fragile before that number could be over-relied
 upon in future planning.
 
+**Next experiment.** Pivot to the MLP's longest-standing open question
+(input-layer behavior, open since Experiment 4), where better statistical
+power is available: does its flat-to-negative post-training
+compressibility track the fraction of task-irrelevant input dimensions?
+
+---
+
+## Experiment 12 — MLP input-layer noise-dimension sweep: the noise-fraction hypothesis is not supported
+
+**Hypothesis.** The input layer's distinct, unexplained behavior (no
+post-training compressibility gain, sometimes a penalty — Experiments 4,
+6, 7) reflects an information-preservation constraint tied to how much of
+its input is task-relevant, rather than a capacity/slack effect. If so,
+its post-training compressibility should improve as the fraction of
+task-irrelevant ("noise") input dimensions increases.
+
+**Method.** `experiments/run_atlas_nn_stage_b_input_layer_noise_sweep.py`.
+2-XOR task (informative dims fixed at 2), `n_features` ∈ {4, 8, 16, 32,
+64} (noise fraction 50%–97%), network width fixed at 64, **5 seeds per
+condition** (more than the usual 3, since this question has been open
+longest and deserved better power). Input layer's best-ratio-at-5%-
+behavioral-error, both states, at each noise level.
+
+**Result — no supporting trend across the tested range; input layer stays
+flat-to-negative throughout.**
+
+| n_features | noise fraction | random-init ratio | trained ratio | gain |
+|---|---|---|---|---|
+| 4 | 50% | 7.05 | 7.53 | 1.07 |
+| 8 | 75% | 6.24 | 6.24 | 1.00 |
+| 16 | 87.5% | 7.88 | 5.28 | **0.67** |
+| 32 | 93.8% | 5.31 | 5.31 | 1.00 |
+| 64 | 96.9% | 6.91 | 4.79 | **0.69** |
+
+No monotonic (or any clean) trend with noise fraction — gain hovers at
+1.0 or below across the entire 50%–97% range tested, including two
+conditions (16 and 64 features) with a real penalty. **This does not
+support the noise-fraction hypothesis as stated.**
+
+**A follow-up check at the zero-noise extreme (n_features=2, no noise
+dimensions at all) shows a different, if inconsistent, picture:** mean
+gain ≈1.14× (random-init ratio mean 6.23 → trained mean 7.08), with 4 of 5
+seeds showing a positive direction and one reversed. This hints that the
+*very* low end of the noise-fraction range might behave differently from
+the 50–97% range tested in the main sweep — but the effect is small,
+inconsistent across seeds, and the input dimensionality itself is
+unusually tiny at this setting (a 64×2 weight matrix, an edge case not
+comparable in shape to the rest of the sweep). Not confirmed; flagged as
+a loose end, not a finding.
+
+**Interpretation.** The clean, monotonic "more noise → more input-layer
+slack" story is not supported by this data — the flat-to-negative pattern
+found in prior experiments is robust across most of the noise-fraction
+range, not something that resolves as noise increases. The input layer's
+distinct behavior remains unexplained. This is a real negative result,
+not a failed experiment: it rules out a specific, plausible, previously
+untested hypothesis with reasonable statistical power (5 seeds × 5
+conditions = 25 measurements), narrowing the space of remaining
+explanations (e.g. something about being the very first layer to receive
+un-normalized raw input, rather than about the input's informativeness
+per se) for whoever picks this question up next.
+
+**Confound worth flagging.** `n_features` was swept with training data
+size held fixed (2000 samples), so higher `n_features` conditions are
+simultaneously "more noise dimensions" *and* "a harder generalization
+problem with the same amount of data" (trained held-out accuracy dropped
+from 98.4% at n_features=4 to 73.6% at n_features=64). A cleaner version
+of this experiment would scale training data with `n_features` to hold
+task difficulty constant while varying only the noise fraction — not done
+here, noted for anyone extending this.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

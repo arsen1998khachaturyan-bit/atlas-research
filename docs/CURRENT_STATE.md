@@ -193,6 +193,25 @@ did and didn't establish, and `docs/NEXT_RESEARCH_DECISION.md` for the
 standing recommendation to prioritize a real pretrained-model source if
 one becomes reachable.
 
+**Overnight autonomous session (Experiments 9–12):** with the user's
+explicit permission to continue working unattended and report back, this
+session ran a chained sequence of follow-up experiments, each a
+falsifiable test of the previous result: quantified the Stage C-lite
+depth gradient as an achievable-compression-ratio number (Experiment 9);
+tested whether the MLP's effective-rank mechanism (Experiment 7)
+transfers to the Transformer (Experiment 10 — it does not); ablated
+residual connections and LayerNorm independently to test candidate
+explanations (Experiment 11 — LayerNorm plausibly drives gain magnitude,
+residual connections do not, and the depth gradient survives removing
+both); and tested whether the MLP's still-unexplained input-layer
+behavior tracks task-irrelevant input noise fraction (Experiment 12 — it
+does not). Every experiment's code, results, and honest writeup
+(including corrections to earlier over-confident readings, e.g. the
+Experiment 10 correlation number) was committed and pushed individually;
+see `docs/RESEARCH_LOG.md` for the full account and
+`docs/NEXT_RESEARCH_DECISION.md` for the current recommendation to pause
+autonomous mechanism-hunting and hand prioritization back to the user.
+
 ### Design constraints adopted for Track B
 
 - **CPU-only, no heavy ML dependencies for Stage A.** Only `numpy` is

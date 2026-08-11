@@ -406,6 +406,43 @@ update note.
 
 ---
 
+## OBSERVATION: the MLP input layer's compressibility does not track task-irrelevant input noise fraction (a specific hypothesis ruled out, not confirmed)
+
+**What was tested.** `experiments/run_atlas_nn_stage_b_input_layer_noise_sweep.py`:
+2-XOR task, informative dimensions fixed at 2, noise fraction swept from
+50% to 97% (`n_features` 4→64) at fixed network width, 5 seeds per
+condition (more than the project's usual 3, given this question — open
+since Experiment 4 — deserved better power). Measured the input layer's
+achievable-compression-ratio gain (Experiment 4/6 methodology) at each
+noise level.
+
+**Result.** No trend supporting the hypothesis that more noise dimensions
+create more input-layer compressibility slack: gain stayed at ≈1.0 or
+below across the entire tested range (1.07, 1.00, 0.67, 1.00, 0.69 for
+noise fractions 50%→97%), including two conditions with a real training-
+induced *penalty*. A separate check at the zero-noise extreme
+(`n_features=2`) showed a small, inconsistent positive gain (≈1.14×,
+4 of 5 seeds positive) — a possible hint that very low noise fractions
+behave differently, but underpowered and on an atypically small (64×2)
+weight matrix, not confirmed as a real effect.
+
+**Why this belongs here even though it's a clean negative.** It rules out
+a specific, plausible, previously-untested explanation for the input
+layer's now three-experiments-old unexplained behavior (Experiments 4, 6,
+7), with real statistical power (25 measurements across 5 noise levels) —
+narrowing, not just restating, the open question. Per mission section 11,
+a negative result that closes off a hypothesis is exactly as valuable as
+a positive one.
+
+**Confound noted for anyone extending this.** Training data size was held
+fixed while `n_features` varied, so higher-noise conditions were also
+harder generalization problems with proportionally less data (trained
+accuracy dropped from 98.4% to 73.6% across the sweep) — a cleaner version
+would scale data with `n_features` to isolate noise fraction from task
+difficulty.
+
+---
+
 ## OBSERVATION: k-means dictionary fitting is not perfectly reliable at small dictionary sizes
 
 On `block_repeated` with `dict_size=8` (only 4 true unique blocks exist),
