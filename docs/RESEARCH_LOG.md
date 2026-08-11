@@ -471,4 +471,74 @@ predicted and then found a *reversal*, not just a repeated observation.
 The `xor2_h256` training-failure confound and the layer-0 penalty are both
 honestly reported rather than smoothed over, per mission section 11.
 
+**Next experiment.** Turn "spare capacity" into a number: compute a
+spectral capacity-usage metric per layer and check whether it predicts the
+*magnitude* of the compression gain already measured, not just its sign.
+
+---
+
+## Experiment 7 — Quantifying capacity: does effective rank predict the compression-gain magnitude?
+
+**Hypothesis.** If Experiment 6's "spare capacity" story is right, a
+layer's effective rank (a spectral proxy for how many independent
+directions its weight matrix actually uses) should shrink more after
+training exactly where the compression gain was larger — turning a
+qualitative story into a quantitative, continuous relationship.
+
+**Method.** `atlas_nn.stage_b.capacity_metrics` implements three spectral
+capacity metrics (Shannon/Roy–Vetterli effective rank, stable rank,
+energy-95% rank; unit-tested against rank-1, random, and increasing-rank
+synthetic matrices). `experiments/analyze_stage_b_capacity_metric.py`
+deterministically reproduces all 6 capacity-sweep conditions × 3 seeds
+(same seeds as Experiment 6, so the same trained models), extracts each
+Linear layer's weight matrix in both states, computes effective rank, and
+correlates rank shrinkage against `log(compression_gain)` where
+`compression_gain = trained_best_ratio / random_init_best_ratio` (from
+Experiment 6's results). `experiments/summarize_stage_b_capacity_metric.py`
+post-processes the result with a stricter training-success filter (see
+caveat below) without re-running any training.
+
+**Result — a real effect, but layer-specific, not uniform.** Pooling all
+3 layers together gives a weak, unreliable signal (Pearson r=0.47, but
+Spearman r≈0.00 — the two disagree because layers have very different
+absolute rank scales, so pooling mixes populations rather than measuring
+one relationship). Breaking it down by layer is what actually shows
+something (n=16 per layer after the stricter filter, correlating absolute
+effective-rank shrinkage — random-init effective rank minus trained
+effective rank — against log compression-gain):
+
+| layer | Pearson r | Spearman r | reads as |
+|---|---|---|---|
+| 0 (input) | 0.13 | 0.37 | weak, inconsistent — matches Experiment 6's separate finding that layer 0 follows a different, unexplained pattern |
+| 2 (hidden→hidden) | **0.67** | **0.62** | moderate-strong, positive — the layer where Experiment 6's effect was found and confirmed is exactly the layer where the rank-shrinkage metric predicts it |
+| 4 (output, 2 units) | −0.56 (abs. shrink) / 0.61 (trained rank) | −0.51 | unstable and sign-flips between related metrics — `max_rank` is only 2 for this layer, so "effective rank" is nearly a binary 1-vs-2 variable and this correlation shouldn't be trusted as a real test of the mechanism |
+
+**A methodological catch, found and fixed during this analysis.**
+`analyze_stage_b_capacity_metric.py`'s original filter for "did this run's
+training succeed" (trained accuracy at least 15 points above its own
+random-init accuracy) let `xor2_h256` seed 33 through as "succeeded" —
+but that run only reached 68% held-out accuracy, well below the ~87%
+ceiling for that condition (the same partial-training artifact class
+Experiment 6 already flagged for seed 22 at the same width, just less
+severe). A relative-gain-only filter isn't sufficient to catch a partial
+failure when the random-init baseline is already near chance. Fixed with
+an added per-condition "near ceiling" check
+(`experiments/summarize_stage_b_capacity_metric.py`) rather than silently
+leaving the weaker filter in place; the numbers above are from the
+corrected analysis. This is the second time in two experiments that a
+generic accuracy check needed strengthening after specifically looking for
+it — worth treating as a standing risk for any future run, not a one-off.
+
+**Interpretation.** The effective-rank metric is a real, if partial,
+quantitative confirmation of the capacity-slack mechanism — specifically
+on the layer where the mechanism was hypothesized to operate (hidden→hidden,
+where weight structure has room to vary continuously), with a correlation
+strong enough to be useful (r≈0.6–0.7, not just directionally positive).
+It does **not** generalize cleanly to the input layer (already known to be
+governed by something else) or the tiny output layer (not a fair test —
+degenerate rank range). This is a more honest and more useful outcome than
+either "the metric perfectly explains everything" or "the metric shows
+nothing" would have been: it identifies specifically where the proposed
+mechanism is well-described by rank and where it manifestly isn't.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

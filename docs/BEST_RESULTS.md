@@ -268,6 +268,55 @@ next question, not yet a hypothesis with an explanation.
 
 ---
 
+## VERIFIED RESULT (partial): effective-rank shrinkage quantitatively predicts compression-gain magnitude on the hidden→hidden layer, but not on the other two layers
+
+**Claim.** A spectral capacity-usage metric (Shannon/Roy–Vetterli effective
+rank of the weight matrix) computed independently of any compression
+method correlates with the log-scale compression-gain magnitude measured
+by the capacity sweep — specifically and only on the hidden→hidden layer
+(layer 2): Pearson r=0.67, Spearman r=0.62, n=16 (one point per condition
+×seed, 3 widths × 2 tasks × 3 seeds − 2 excluded training failures). This
+is a moderate-strong, practically useful correlation, not just a
+directionally-positive one. On the input layer the correlation is weak and
+inconsistent (r=0.13–0.49 depending on which specific metric); on the tiny
+2-unit output layer the correlation is unstable and not a fair test (that
+layer's `max_rank` is only 2, making "effective rank" nearly a binary
+variable).
+
+**How verified.** `atlas_nn.stage_b.capacity_metrics` (unit-tested
+independently: rank-1 matrix → effective rank ≈1, random square matrix →
+high effective rank, effective rank increases monotonically with true
+rank). `experiments/analyze_stage_b_capacity_metric.py` deterministically
+reproduces the same 6 conditions × 3 seeds already characterized by the
+capacity sweep (same fixed seeds) and computes the metric on the actual
+trained/random weight tensors. Reproduce with
+`python -m experiments.analyze_stage_b_capacity_metric` then
+`python -m experiments.summarize_stage_b_capacity_metric` (the second
+script applies a corrected training-success filter — see the caveat
+immediately below — without re-running any training).
+
+**Caveat found and fixed during this analysis.** The first pass's
+training-success filter (trained accuracy ≥15 points above that run's own
+random-init accuracy) let one partially-failed training run through as
+"succeeded" (`xor2_h256` seed 33: 68% held-out accuracy vs. an ~87%
+ceiling for that condition) — a milder version of the same confound
+Experiment 6 already found and excluded for a different seed at the same
+width. Fixed with an added per-condition "near ceiling" check; the
+correlation numbers above are from the corrected analysis. Flagged here
+rather than silently corrected, since it's the second time in two rounds
+that a generic accuracy-margin filter needed strengthening — a standing
+risk worth checking explicitly in any future run rather than assuming a
+fixed threshold is safe.
+
+**Scope of the claim.** Labeled "partial" because it holds cleanly on one
+of three layers, not all three — consistent with, but not full
+confirmation of, the broader capacity-slack story. It's a genuine
+sharpening (a testable number, not just a direction) precisely where the
+mechanism was expected to operate, and an honest non-result where it
+wasn't (input layer) or wasn't a fair test (output layer).
+
+---
+
 ## OBSERVATION: k-means dictionary fitting is not perfectly reliable at small dictionary sizes
 
 On `block_repeated` with `dict_size=8` (only 4 true unique blocks exist),
