@@ -129,3 +129,33 @@ def test_run_layer_experiment_restores_model_weights_and_records_behavioral_metr
     assert required_fields.issubset(row.keys())
     assert 0.0 <= row["original_accuracy"] <= 1.0
     assert 0.0 <= row["substituted_accuracy"] <= 1.0
+
+
+def test_build_mlp_frozen_input_projection_adds_a_frozen_leading_linear_layer():
+    model = build_mlp(seed=1, input_dim=32, use_frozen_input_projection=True)
+    names = linear_layer_names(model)
+    assert len(names) == 4  # frozen projection + 3 trainable layers
+
+    frozen_layer = dict(model.named_modules())[names[0]]
+    assert frozen_layer.weight.requires_grad is False
+    assert tuple(get_weight(model, names[0]).shape) == (32, 32)
+
+    for name in names[1:]:
+        trainable_layer = dict(model.named_modules())[name]
+        assert trainable_layer.weight.requires_grad is True
+
+    # the first *trainable* layer has the same shape as the baseline's
+    # actual input layer (still input_dim -> hidden_dim)
+    assert tuple(get_weight(model, names[1]).shape) == (64, 32)
+
+
+def test_build_mlp_frozen_input_projection_weights_do_not_change_with_training():
+    x_train, y_train = make_xor_dataset(200, n_features=32, seed=1)
+    model = build_mlp(seed=1, input_dim=32, use_frozen_input_projection=True)
+    names = linear_layer_names(model)
+    frozen_weight_before = get_weight(model, names[0]).detach().numpy().copy()
+
+    train_mlp(model, x_train, y_train, epochs=20, lr=2e-2)
+
+    frozen_weight_after = get_weight(model, names[0]).detach().numpy()
+    assert np.array_equal(frozen_weight_before, frozen_weight_after)

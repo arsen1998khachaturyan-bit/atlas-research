@@ -11,6 +11,7 @@ def build_mlp(
     output_dim: int = 2,
     n_hidden_layers: int = 2,
     use_layernorm: bool = False,
+    use_frozen_input_projection: bool = False,
 ) -> nn.Module:
     """(n_hidden_layers + 1)-Linear-layer MLP: [Linear -> ReLU (-> LayerNorm)]
     * n_hidden_layers -> Linear. Default n_hidden_layers=2 reproduces the
@@ -29,6 +30,21 @@ def build_mlp(
     never treated as a compressible "layer" here -- consistent with how
     the Transformer experiments handle LayerNorm.
 
+    `use_frozen_input_projection=True` prepends a frozen (non-trainable,
+    orthogonally initialized, information-preserving) `nn.Linear(input_dim,
+    input_dim, bias=False)` before the trainable stack -- added to test
+    whether the input layer's distinctive, unexplained flat-to-negative
+    post-training compressibility (open since Experiment 4; noise-fraction
+    and effective-rank hypotheses both ruled out, Experiments 7, 12, 15) is
+    about literally being the first layer to see *raw, untransformed* task
+    input, rather than about capacity/slack. With this on, the first
+    *trainable* layer (index 1 in `linear_layer_names`, not index 0 -- the
+    frozen projection is index 0 and never changes, so its own
+    random-init/trained comparison is trivially flat and should be
+    excluded from analysis) sees a fixed linear transform of the raw input
+    instead of the raw input itself, while everything else about the
+    architecture is unchanged. See docs/RESEARCH_LOG.md Experiment 16.
+
     Caution (found empirically, see docs/RESEARCH_LOG.md Experiment 5): with
     plain PyTorch default init and no normalization, n_hidden_layers=5 on
     this scale produced a *degenerate* random-init network (near-zero output
@@ -43,6 +59,14 @@ def build_mlp(
 
     torch.manual_seed(seed)
     layers: list[nn.Module] = []
+
+    if use_frozen_input_projection:
+        projection = nn.Linear(input_dim, input_dim, bias=False)
+        nn.init.orthogonal_(projection.weight)
+        for param in projection.parameters():
+            param.requires_grad_(False)
+        layers.append(projection)
+
     in_dim = input_dim
     for _ in range(n_hidden_layers):
         layers.append(nn.Linear(in_dim, hidden_dim))
