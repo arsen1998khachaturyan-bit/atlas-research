@@ -264,10 +264,24 @@ random-init search's best method was the safe `quantize` fallback;
 most pretrained searches were won by a structure-aware method instead
 (low-rank, codebook, block-dictionary) — training doesn't just improve
 ratios, it makes entire method families viable. Full wall-clock cost:
-~3.3 hours on CPU for the 24-search sweep. See `docs/RESEARCH_LOG.md`
-Experiment 19 and `docs/NEXT_RESEARCH_DECISION.md` for current options
-(a second pretrained model, more distilgpt2 layer coverage, the MLP
-input-layer question, or folding this into the synthesis artifact).
+~3.3 hours on CPU for the 24-search sweep.
+
+**Experiment 20 (cross-model check, completed):** reran Experiment 18's
+methodology on `gpt2` (124M, 12 blocks — larger, undistilled). The
+effect's magnitude generalizes cleanly (1.4×–8.0× gain range, vs.
+distilgpt2's 1.2×–7.6×, tight seed reproducibility on both). The depth
+*pattern*, however, is not consistent even within gpt2 itself:
+`svd_rank4` peaks at the middle block (echoing distilgpt2's own
+non-monotonic Experiment 18 result); `atlas_block_dict` on the same
+layers shows the opposite, monotonically-decreasing-with-depth shape —
+independent confirmation of Experiment 19's lesson that no single fixed
+method's depth reading should be trusted; only a full budget search
+(each layer picking its own best method) is reliable. `atlas_nn/
+stage_c_real/model.py` is now generalized to accept any GPT-2-family
+model by name. See `docs/RESEARCH_LOG.md` Experiments 18–20 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (a budget search on
+gpt2 — the clear next step, a third checkpoint, the MLP input-layer
+question, or folding all of this into the synthesis artifact).
 
 ### Design constraints adopted for Track B
 

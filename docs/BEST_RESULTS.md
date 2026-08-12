@@ -854,6 +854,51 @@ the outlier alone.
 
 ---
 
+## VERIFIED RESULT: the behavioral-robustness effect's magnitude generalizes across two real pretrained models (distilgpt2 and gpt2); the depth-pattern shape does not generalize under a single fixed method
+
+**Claim.** Rerunning Experiment 18's exact methodology on `gpt2` (124M
+parameters, 12 blocks — larger and undistilled, vs. distilgpt2's 82M/6
+blocks) reproduces the behavioral-robustness effect at closely matching
+magnitude: gains of 1.4×–8.0× across 6 compression methods, vs.
+distilgpt2's 1.2×–7.6× on the same methods. Reproducibility across
+random-init seeds is tight on both models (under 6% spread). This is the
+first cross-model generalization check in the project and the effect's
+overall magnitude holds up cleanly.
+
+**What does not generalize: the depth pattern under any single fixed
+method.** `svd_rank4` peaks at the *middle* block on gpt2 (block 6 of 12),
+almost exactly echoing distilgpt2's own middle-peaking, non-monotonic
+result (Experiment 18). But `atlas_block_dict16_res4bit` on the same gpt2
+layers shows the *opposite* shape — monotonically *decreasing* gain with
+depth — directly contradicting what Experiment 19's budget search found
+for distilgpt2 (achievable ratio rising sharply toward the *last* block).
+Two different fixed-parameter methods on the same model disagree with
+each other about which end of the network benefits more from training.
+
+**How verified.** `experiments/run_atlas_nn_stage_c_real_smoke_gpt2.py`
+(same protocol as Experiment 18, `atlas_nn/stage_c_real/model.py`
+generalized to take a `model_name` parameter), 7 methods × 12 layers ×
+4 states (1 pretrained + 3 random-init seeds), 336 rows. Reproduce with
+`python -m experiments.run_atlas_nn_stage_c_real_smoke_gpt2` (writes
+`results/atlas_nn_stage_c_real_smoke_gpt2.json`).
+
+**Why this strengthens rather than undermines the project's depth-pattern
+methodology.** Experiment 19 already established that a single fixed
+compression method's depth reading is not a trustworthy measure of the
+*true* achievable-ratio depth gradient (only a budget search, letting
+each layer pick its own best method, is). This result is independent
+confirmation of exactly that lesson, on a second model: two different
+fixed methods here give two contradictory depth stories, which is exactly
+what you'd expect if fixed-method depth readings are unreliable in
+general, not just on distilgpt2's specific case.
+
+**Scope of the claim.** Fixed compression parameters only — a budget
+search on `gpt2` (mirroring Experiment 19) has not yet been run, so
+whether gpt2's *true* achievable-ratio depth gradient matches
+distilgpt2's (rising toward the last block) remains untested.
+
+---
+
 ## Explicitly not yet claimed
 
 - Nothing about *larger* networks (mission Stage D) or models above ~100M

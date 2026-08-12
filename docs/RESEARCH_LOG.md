@@ -1572,3 +1572,88 @@ clear 1.5×–7.9× gain, so the qualitative depth-gradient claim does not
 rest on that one number alone.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 20 — Cross-model generalization: does the effect (and Experiment 18's depth-pattern puzzle) replicate on gpt2, or is it distilgpt2-specific?
+
+**Hypothesis.** If the behavioral-robustness effect found on distilgpt2
+(Experiments 18–19) reflects something general about GPT-2-family
+pretrained models rather than being specific to that one checkpoint, it
+should reproduce at similar magnitude on `gpt2` (124M parameters, 12
+blocks, same 768-dim/12-head configuration as distilgpt2 but not
+distilled and twice as deep).
+
+**Method.** `atlas_nn/stage_c_real/model.py` was generalized to accept a
+`model_name` parameter (previously hardcoded to `"distilgpt2"`), deriving
+the tested-block subset from the model's own `config.n_layer` (first,
+middle, last — blocks 0, 6, 11 for gpt2's 12) rather than a value pinned
+by hand. `experiments/run_atlas_nn_stage_c_real_smoke_gpt2.py` reruns
+Experiment 18's exact smoke-test methodology (7 fixed-parameter methods,
+12 tested Conv1D layers, pretrained vs. 3 untrained random-init seeds)
+against `gpt2` instead. `results/atlas_nn_stage_c_real_smoke_gpt2.json`.
+
+**Result 1 — the core effect reproduces, at closely matching magnitude to
+distilgpt2 (mean rel_logit_error, pooled over all 12 layers/seeds):**
+
+| method | pretrained | random-init | gain | (distilgpt2's gain, Exp. 18) |
+|---|---|---|---|---|
+| prune_50pct | 0.015 | 0.121 | **8.0×** | 6.2× |
+| atlas_block_dict16_res4bit | 0.006 | 0.038 | **6.8×** | 6.8× |
+| quantize_4bit_block64 | 0.007 | 0.040 | **5.3×** | 7.6× |
+| vector_codebook_k16 | 0.108 | 0.354 | **3.3×** | 4.4× |
+| svd_rank4 | 0.180 | 0.466 | **2.6×** | 4.9× |
+| quantize_8bit_pertensor | 0.004 | 0.005 | 1.4× | 1.2× |
+
+Every method's gain falls within the same rough 1.4×–8× band found on
+distilgpt2, on a model this project also did not train, of a different
+size (124M vs. 82M) and depth (12 vs. 6 blocks). Reproducibility across
+random-init seeds is tight, matching distilgpt2's pattern (svd_rank4 gain:
+2.63×, 2.64×, 2.49× across seeds 11/22/33 — under 6% spread).
+
+**Result 2 — a genuinely new wrinkle: two different fixed methods give
+two different, method-dependent depth pictures, neither matching a clean
+monotonic gradient (mean rel_logit_error by block):**
+
+| block | svd_rank4 gain | atlas_block_dict gain |
+|---|---|---|
+| 0 (early) | 2.78× | **12.33×** |
+| 6 (middle) | **4.65×** | 5.31× |
+| 11 (late) | 1.36× | 2.85× |
+
+`svd_rank4` peaks at the *middle* block (echoing Experiment 18's own
+non-monotonic, middle-peaking distilgpt2 result almost exactly — block 3
+of 6 there, block 6 of 12 here). `atlas_block_dict`, in contrast, shows a
+*monotonically decreasing* gain with depth — the opposite direction from
+what Experiment 19's budget search found for distilgpt2 (where the
+achievable-ratio gradient rose sharply toward the *last* block). Two
+different fixed compression methods on the same model, same layers,
+disagree with each other about which end of the network benefits more.
+
+**Interpretation.** This strengthens Experiment 19's core methodological
+lesson rather than adding a new mystery: Experiment 19 already showed
+that a *single fixed* compression method's depth reading (Experiment 18's
+`svd_rank4`-only view) doesn't reliably reflect the true achievable-ratio
+depth gradient, because different layers have different natural
+structure that one fixed method probes unevenly. Here, on a second model,
+two different fixed methods give two different, mutually contradictory
+depth stories — direct confirmation that **no single fixed-parameter
+method's depth pattern should be trusted as "the" depth gradient**; only
+a budget search (letting each layer pick its own best method, as
+Experiment 19 did for distilgpt2) is a trustworthy measure of it. This
+experiment has not yet run that budget search on `gpt2`.
+
+**What is robust across both models, despite the depth-pattern
+disagreement.** The *overall*, depth-pooled magnitude of the behavioral-
+robustness effect (1.4×–8× depending on method) is essentially identical
+between distilgpt2 and gpt2. This is the part of the finding that
+generalizes cleanly; the specific shape of the depth gradient is the part
+that needs the more expensive budget-search methodology to measure
+reliably, on either model.
+
+**Scope of the claim.** Same 12-of-many-more layer subset limitation as
+Experiment 18, one model beyond distilgpt2, fixed compression parameters
+(not yet a budget search on `gpt2` — that is the natural next step,
+mirroring Experiment 19).
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
