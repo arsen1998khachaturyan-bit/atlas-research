@@ -17,6 +17,10 @@ restores a positive rank-shrinkage correlation, that supports the
 architectural-connectivity hypothesis. If the gain and the (lack of)
 correlation persist regardless, the hypothesis is wrong and something else
 explains the Transformer's gain.
+
+Uses 8 seeds per condition (raised from the original 3 after Experiment 11
+found a real but thinly-evidenced LayerNorm magnitude effect, n=2
+comparison pairs) for better statistical power on that specific question.
 """
 from __future__ import annotations
 
@@ -38,7 +42,7 @@ from atlas_nn.stage_c_lite.model import (
     set_weight,
 )
 
-SEEDS = (11, 22, 33)
+SEEDS = (11, 22, 33, 44, 55, 66, 77, 88)
 N_EXAMPLES = 200
 N_TRAIN = 150
 MAX_LEN = 16
