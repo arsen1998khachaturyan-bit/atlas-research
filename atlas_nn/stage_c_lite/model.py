@@ -135,12 +135,15 @@ class AblationEncoderBlock(nn.Module):
         use_residual: bool,
         use_layernorm: bool,
         use_attention: bool = True,
+        match_no_mixing_params: bool = False,
     ):
         super().__init__()
         self.use_residual = use_residual
         self.use_layernorm = use_layernorm
         if use_attention:
             self.self_attn = nn.MultiheadAttention(d_model, n_heads, batch_first=True, dropout=0.0)
+        elif match_no_mixing_params:
+            self.self_attn = MatchedParamNoMixingAttention(d_model)
         else:
             self.self_attn = NoMixingAttention(d_model)
         self.linear1 = nn.Linear(d_model, d_ff)
@@ -182,6 +185,7 @@ class AblationTransformerClassifier(nn.Module):
         use_residual: bool = True,
         use_layernorm: bool = True,
         use_attention: bool = True,
+        match_no_mixing_params: bool = False,
     ):
         super().__init__()
         self.pad_idx = pad_idx
@@ -189,7 +193,10 @@ class AblationTransformerClassifier(nn.Module):
         self.pos_embedding = nn.Embedding(max_len, d_model)
         self.encoder = nn.ModuleDict({
             "layers": nn.ModuleList([
-                AblationEncoderBlock(d_model, n_heads, d_ff, use_residual, use_layernorm, use_attention)
+                AblationEncoderBlock(
+                    d_model, n_heads, d_ff, use_residual, use_layernorm,
+                    use_attention, match_no_mixing_params,
+                )
                 for _ in range(n_layers)
             ])
         })
@@ -220,6 +227,7 @@ def build_ablation_transformer_classifier(
     use_residual: bool = True,
     use_layernorm: bool = True,
     use_attention: bool = True,
+    match_no_mixing_params: bool = False,
 ) -> AblationTransformerClassifier:
     torch.manual_seed(seed)
     return AblationTransformerClassifier(
@@ -233,4 +241,5 @@ def build_ablation_transformer_classifier(
         use_residual=use_residual,
         use_layernorm=use_layernorm,
         use_attention=use_attention,
+        match_no_mixing_params=match_no_mixing_params,
     )
