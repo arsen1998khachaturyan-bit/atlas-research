@@ -212,6 +212,30 @@ see `docs/RESEARCH_LOG.md` for the full account and
 `docs/NEXT_RESEARCH_DECISION.md` for the current recommendation to pause
 autonomous mechanism-hunting and hand prioritization back to the user.
 
+**Second autonomous session (Experiments 15–17), also with explicit
+permission to work unattended:** continued the chained-hypothesis
+discipline to full resolution on two threads. Transformer mechanism
+(Experiments 10, 11, 13, 14, 17): four architectural factors — effective
+rank, residual connections, LayerNorm, attention — each isolated to a
+specific, tested role. Current picture: cross-token mixing (attention
+specifically, confirmed via a parameter-count-matched ablation in
+Experiment 17, not just "having an attention-shaped sublayer") drives
+gain magnitude and part of the depth gradient; LayerNorm drives
+rank-decoupling (confirmed to generalize to the MLP, Experiment 13) and a
+smaller, independent magnitude contribution. This thread reached a
+natural stopping point — no remaining ambiguity of the kind resolved
+along the way, further progress would need new tools (e.g. direct
+attention-pattern analysis) rather than more ablations of the same kind.
+MLP input-layer question (Experiments 12, 15, 16): three specific
+hypotheses tested and ruled out (effective rank, noise fraction,
+raw-vs-processed input) at good statistical power (8 seeds); the behavior
+itself — no post-training compressibility gain, sometimes a penalty,
+unique among all layer types in every architecture tested — remains real,
+reproducible, and unexplained. See `docs/RESEARCH_LOG.md` for the full
+17-experiment account and `docs/NEXT_RESEARCH_DECISION.md` for current
+options (Transformer input-layer analog check, a real pretrained-model
+test if network policy allows, or a consolidation pass).
+
 ### Design constraints adopted for Track B
 
 - **CPU-only, no heavy ML dependencies for Stage A.** Only `numpy` is
