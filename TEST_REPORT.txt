@@ -1,10 +1,11 @@
-72 passed, 2 warnings in 470.86s (0:07:50)
+71 passed, 1 warning (confirmed after the tested_layer_names import-alias
+fix): "63 passed, 1 warning in 466.12s" for tests/ minus
+test_atlas_nn_stage_c_real.py, plus "8 passed in 28.68s" for
+test_atlas_nn_stage_c_real.py run standalone. The one remaining warning
+(PyTorch nested-tensor prototype-API notice in test_atlas_nn_stage_c_lite.py)
+is pre-existing and unrelated to this session's changes.
 
-(One of the two warnings was a pytest test-collection artifact in the new
-tests/test_atlas_nn_stage_c_real.py -- an imported `tested_layer_names`
-helper was picked up as a test function because its name starts with
-"test". Fixed by aliasing the import; the file was re-run standalone
-afterward and passed cleanly with no warnings: "8 passed in 28.68s". The
-remaining warning (PyTorch nested-tensor prototype-API notice in
-test_atlas_nn_stage_c_lite.py) is pre-existing and unrelated to this
-change.)
+(Earlier in this session, before the fix: "72 passed, 2 warnings" -- the
+extra "test" and warning were a pytest test-collection artifact: an
+imported `tested_layer_names` helper was picked up as a test function
+because its name starts with "test". Fixed by aliasing the import.)
