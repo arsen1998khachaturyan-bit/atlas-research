@@ -852,6 +852,15 @@ one outlier layer; the other two block-5 layers still show a clear
 1.5×–7.9× gain on their own, so the depth-gradient claim does not rest on
 the outlier alone.
 
+> **⚠ Update after Experiment 21 (gpt2 budget search):** the 307.2×
+> *magnitude* number and the underlying "training unlocks structure-aware
+> methods" finding both stand as measured on distilgpt2. But "the gain
+> concentrates near the end of the network" does **not** generalize —
+> gpt2 shows the opposite, largest gains near the *start* of the network.
+> Read this entry's depth-gradient claim as scoped specifically to
+> distilgpt2, not as a general property of trained Transformers. See the
+> new VERIFIED RESULT below.
+
 ---
 
 ## VERIFIED RESULT: the behavioral-robustness effect's magnitude generalizes across two real pretrained models (distilgpt2 and gpt2); the depth-pattern shape does not generalize under a single fixed method
@@ -896,6 +905,61 @@ general, not just on distilgpt2's specific case.
 search on `gpt2` (mirroring Experiment 19) has not yet been run, so
 whether gpt2's *true* achievable-ratio depth gradient matches
 distilgpt2's (rising toward the last block) remains untested.
+
+> **⚠ Update after Experiment 21 (gpt2 budget search):** it does not
+> match — it's reversed. See the new VERIFIED RESULT below.
+
+---
+
+## VERIFIED RESULT: the achievable-ratio depth gradient is REVERSED on gpt2 relative to distilgpt2 — "gain increases with depth" does not generalize
+
+**Claim.** The gpt2 budget search (same methodology as Experiment 19)
+found block 0's mean gain (24.8×) more than 3× larger than block 11's
+(7.1×) — the opposite direction from distilgpt2, where block 0's mean
+gain (1.3×) was the small one and block 5 (last)'s (22.3×) was the large
+one. The single largest number in this experiment — 384× compression at
+5% behavioral error, via SVD, on `transformer.h.0.attn.c_proj` — is on
+the *first* block, the position that showed the *least* benefit from
+training on distilgpt2. This directly falsifies "achievable-ratio gain
+increases with depth" as a general property of trained Transformers —
+a pattern that had held, in the same direction, across Stage C-lite's
+2-block from-scratch Transformer (Experiments 8–9) and distilgpt2's
+6-block real checkpoint (Experiment 19), until this second real
+checkpoint broke it.
+
+**What still holds across both real models.** The structural finding is
+robust: every random-init search (18 of 18, both models combined) was won
+by the safe `quantize` fallback; every pretrained search was won by a
+structure-aware method instead. And Experiment 20 already established the
+*overall*, depth-pooled magnitude of the behavioral-robustness effect
+(1.4×–8× at fixed parameters) generalizes cleanly between the two models.
+Only the specific claim about *where in the network* the largest gains
+concentrate is falsified by this result — not the underlying phenomenon.
+
+**How verified.** `experiments/run_atlas_nn_stage_c_real_budget_search_gpt2.py`,
+6 layers (blocks 0 and 11, 3 sublayer types) × 4 states (1 pretrained + 3
+random-init seeds), same 31-config sweep and 5% quality bar as Experiment
+19. Reproduce with
+`python -m experiments.run_atlas_nn_stage_c_real_budget_search_gpt2`
+(writes `results/atlas_nn_stage_c_real_budget_search_gpt2.json`).
+
+**Two unverified candidate explanations for the reversal.** (a) Scale/
+depth: gpt2 is larger (124M vs. 82M) and deeper (12 vs. 6 blocks) — but
+this doesn't obviously predict a full *reversal*, since both Stage
+C-lite's 2-block and distilgpt2's 6-block Transformers agreed on the
+late-block-dominant direction before gpt2 broke the pattern. (b) Training
+procedure: distilgpt2 is trained via knowledge distillation from a larger
+teacher, while gpt2 is trained from scratch on its own causal-LM
+objective — a real, unexamined difference in *how* each model was
+trained, not just its size. Distinguishing these needs a third model with
+a different training recipe (e.g. another from-scratch causal LM near
+distilgpt2's size, or a second distilled model); not attempted yet.
+
+**Scope of the claim.** Two models, a 6-layer subset in each (not
+exhaustive layer coverage), one behavioral-error threshold, discrete
+parameter grids. This is a genuine falsification of a specific
+generalization, reported per mission section 11 rather than smoothed
+over or left implicit in the two models' separate writeups.
 
 ---
 

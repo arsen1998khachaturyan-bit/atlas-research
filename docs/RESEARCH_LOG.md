@@ -1657,3 +1657,94 @@ Experiment 18, one model beyond distilgpt2, fixed compression parameters
 mirroring Experiment 19).
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 21 — gpt2 budget search: the depth gradient is REVERSED relative to distilgpt2, not just differently shaped
+
+**Hypothesis.** Given Experiment 20's finding that two fixed compression
+methods disagreed with each other about gpt2's depth pattern, and the
+established lesson (Experiment 19) that only a budget search gives a
+trustworthy depth reading, running the actual budget search on gpt2
+should resolve which end of the network benefits more from training —
+either matching distilgpt2's late-block-dominant pattern, or revealing
+something genuinely different.
+
+**Method.** `experiments/run_atlas_nn_stage_c_real_budget_search_gpt2.py`
+(the budget-search script generalized to accept a `model_name`, with
+gpt2's first/last blocks — 0 and 11 of 12 — in place of distilgpt2's 0
+and 5). Same 6 layers (2 blocks × 3 sublayer types), same 4 states (1
+pretrained + 3 random-init seeds), same 31-config sweep, same 5%
+behavioral-error bar as Experiment 19. `results/
+atlas_nn_stage_c_real_budget_search_gpt2.json`.
+
+**Result — the depth gradient is not just differently shaped from
+distilgpt2's, it is reversed (mean best-ratio-at-5%-error over 3
+random-init seeds):**
+
+| layer | pretrained ratio | random-init ratio (mean) | gain |
+|---|---|---|---|
+| block 0 attn.c_proj | **384.0** | 5.33 | **72.0×** |
+| block 0 mlp.c_fc | 6.34 | 5.33 | 1.2× |
+| block 0 mlp.c_proj | 6.34 | 5.33 | 1.2× |
+| block 11 attn.c_proj | 96.0 | 8.00 | 12.0× |
+| block 11 mlp.c_fc | 63.8 | 8.00 | 8.0× |
+| block 11 mlp.c_proj | 10.0 | 8.00 | 1.3× |
+
+Block 0's mean gain (**24.8×**) is more than 3× larger than block 11's
+(7.1×) — on distilgpt2 (Experiment 19), block 0's mean gain was the
+*small* one (1.3×) and block 5 (last) was the *large* one (22.3×). Same
+methodology, same layer types, same quality bar, opposite depth story.
+The single largest number in this experiment (`transformer.h.0.attn.c_proj`,
+a 768×768 matrix, 384× compression at 5% behavioral error via SVD) is on
+the *first* block — the layer type and rough position that showed the
+*least* benefit from training on distilgpt2.
+
+**What still replicates cleanly across both models: the structural
+finding.** Exactly as on distilgpt2, every one of the 18 random-init
+searches (6 layers × 3 seeds) was won by the safe `quantize` fallback,
+with no exceptions; every pretrained search was won by a structure-aware
+method (`svd`, `atlas_block_dict`, `vector_codebook`, or `prune`) instead.
+Training unlocking entire method families, not just improving ratios
+within one family, is robust across both real models tested so far — only
+*where in the network* this shows up most strongly differs.
+
+**Interpretation.** This falsifies the specific claim (implicit in
+Experiments 8/9/19's consistent pattern) that "gain increases with depth"
+is a general property of trained Transformers. It doesn't falsify the
+core behavioral-robustness effect itself (Experiment 20 already showed
+the *overall* magnitude generalizes cleanly, 1.4×–8× at fixed parameters
+on both models) — only the specific, appealing story about *where* in the
+network that magnitude concentrates. Two candidate explanations, both
+currently unverified: (a) gpt2's larger scale (124M vs. 82M) or extra
+depth (12 vs. 6 blocks) changes where representational slack
+accumulates during training — plausible, but Stage C-lite's from-scratch
+Transformer (2 blocks) and distilgpt2 (6 blocks) both showed the same
+late-block-dominant direction, so simple "more blocks" doesn't obviously
+predict a full reversal; (b) `gpt2` and `distilgpt2` were trained
+differently enough (distillation target vs. from-scratch language-model
+objective) that this is fundamentally a training-procedure effect, not a
+architecture/depth effect at all — distilgpt2's training explicitly
+optimizes it to match a teacher model's *later*-layer behavior via
+knowledge distillation, which could plausibly concentrate representational
+change (and thus post-training slack) differently across depth than
+gpt2's own from-scratch causal-LM training did. Neither is tested here.
+
+**Why this is good news for the project's discipline, not a setback.**
+Every step of this thread (Experiment 18's confusing fixed-method reading
+→ Experiment 19's budget-search resolution on distilgpt2 → Experiment
+20's contradictory fixed-method readings on gpt2 → this budget search)
+was exactly the kind of chained, falsification-driven follow-up the
+mission calls for, and it just caught a real overgeneralization
+(depth-gradient direction) before it could calcify into an unqualified
+claim in `docs/BEST_RESULTS.md`.
+
+**Scope of the claim.** Two models, 6-of-24 (distilgpt2) and 6-of-many
+(gpt2) layers tested, one behavioral-error threshold, discrete parameter
+grids. The training-procedure-difference hypothesis (b above) is
+untested — would need a third model with yet another training recipe
+(e.g. a from-scratch causal LM at a similar scale to distilgpt2, or
+another distilled model) to distinguish from the scale/depth hypothesis
+(a).
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

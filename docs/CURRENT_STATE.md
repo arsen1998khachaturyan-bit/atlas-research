@@ -278,10 +278,27 @@ independent confirmation of Experiment 19's lesson that no single fixed
 method's depth reading should be trusted; only a full budget search
 (each layer picking its own best method) is reliable. `atlas_nn/
 stage_c_real/model.py` is now generalized to accept any GPT-2-family
-model by name. See `docs/RESEARCH_LOG.md` Experiments 18–20 and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (a budget search on
-gpt2 — the clear next step, a third checkpoint, the MLP input-layer
-question, or folding all of this into the synthesis artifact).
+model by name.
+
+**Experiment 21 (gpt2 budget search, completed) — the depth gradient is
+REVERSED, not just differently shaped.** Block 0's mean gain (24.8×) is
+over 3× block 11's (7.1×) — distilgpt2 showed the opposite (block 0: 1.3×,
+block 5/last: 22.3×). The single largest number found (384× compression
+at 5% behavioral error, SVD, `transformer.h.0.attn.c_proj`) is on the
+*first* block. This falsifies "gain increases with depth" as a general
+Transformer property — it held across Stage C-lite (2 blocks) and
+distilgpt2 (6 blocks) before gpt2 (12 blocks) broke it. What still holds
+on both real models: the structural finding (training unlocks
+structure-aware compression methods entirely, not just better ratios)
+and the overall 1.4×–8× fixed-parameter magnitude range (Experiment 20).
+Two unverified explanations for the reversal — model scale/depth vs.
+distilgpt2's knowledge-distillation training procedure specifically — are
+not yet distinguished; would need a third model with a different
+training recipe. See `docs/RESEARCH_LOG.md` Experiments 18–21 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (a third pretrained
+model — the clear next step to disentangle scale from training
+procedure — the MLP input-layer question, mechanism checks on a real
+model, or folding all of this into the synthesis artifact).
 
 ### Design constraints adopted for Track B
 
