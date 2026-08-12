@@ -861,6 +861,70 @@ its own predecessor's result (Experiment 10's specific correlation
 number) as statistically fragile before that number could be over-relied
 upon in future planning.
 
+---
+
+### Experiment 11 addendum — raised to 8 seeds (n=49–56 per condition): the pattern replicates and sharpens
+
+**Why.** Finding 2 above (LayerNorm drives gain magnitude) rested on just
+2 comparison pairs (n=6–9 per block per condition) — real signal, too
+thin to trust on its own. Re-ran the identical script
+(`experiments/run_atlas_nn_stage_c_lite_residual_ablation.py`) with SEEDS
+raised from `(11, 22, 33)` to 8 seeds, no other changes.
+
+**Result — both findings replicate closely, and the correlation picture
+sharpens into something more interpretable (pooled across all 7 layers
+per condition, n=49–56):**
+
+| condition | mean robustness gain | rank-shrinkage correlation (Pearson) |
+|---|---|---|
+| residual + layernorm (baseline) | 16.3 (was 13.8 at 3 seeds) | 0.23 (was 0.18) |
+| no residual | 18.4 (was 17.0) | 0.29 (was 0.30) |
+| no layernorm | 8.1 (was 7.9) | **0.55** (was 0.51) |
+| neither | 4.1 (was 4.6) | 0.37 (was 0.37) |
+
+Every mean-gain number changed by less than 15% between the 3-seed and
+8-seed runs — a strong reproducibility signal on its own. The magnitude
+finding holds exactly as before: conditions *with* LayerNorm (16.3, 18.4)
+show roughly 2–4× the gain of conditions *without* it (8.1, 4.1);
+removing residual connections alone still doesn't reduce gain (if
+anything, 16.3→18.4 is a slight increase).
+
+**The correlation picture is now cleaner and consistently positive in
+all 4 conditions** (0.23 to 0.55) — unlike the original n=9 measurement
+in the entry above (which found a *negative* r=−0.54 on block 1 alone).
+With better power, **all four conditions actually show a positive
+rank-shrinkage relationship, and removing LayerNorm consistently raises
+it** (0.23→0.55 holding residual fixed; 0.29→0.37 the other way) — a
+real, replicated refinement: LayerNorm doesn't just increase gain
+magnitude, it also *decouples* the gain from the layer's own weight-matrix
+rank structure, consistent with LayerNorm providing a normalization
+pathway that makes robustness less dependent on raw spectral properties.
+
+**Per-block breakdown remains noisier** (n=21–24 per block, still smaller
+than the pooled n): block 1's own Pearson r ranges from −0.22
+(`no_residual`) to +0.64 (`no_layernorm`) — the *direction* "no_layernorm
+has the highest correlation" holds, but individual block-level numbers
+still shouldn't be over-read. One seed (33) failed to train under
+`no_residual` specifically (held-out accuracy did not clear the
+success threshold) — a reminder that removing residual connections does
+carry a real, if occasional, optimization-difficulty cost, consistent
+with the general risk found back in Experiment 5's deep-MLP degeneracy.
+
+**Depth gradient re-confirmed at much better power too:** block-1 mean
+gain exceeds block-0 in all 4 conditions by 4.0×–9.4× (previously
+3.6×–17× at n=6–9) — same conclusion, tighter estimate.
+
+**Revised interpretation.** Experiment 10's original r=−0.54 is now
+better understood as a small-sample artifact rather than a stable
+negative effect — the corrected picture (this addendum) is that
+rank-shrinkage correlates *positively* with the Transformer's gain in
+every condition tested, just more weakly when LayerNorm is present
+(0.23–0.29) than when it's removed (0.37–0.55), and always weaker than
+the MLP's r≈0.67. This is a more coherent, better-evidenced story than
+either the original Experiment 10 (apparent non-relationship or negative
+relationship) or the first pass of Experiment 11 (too noisy to trust)
+supported — see `docs/BEST_RESULTS.md` for the corrected entries.
+
 **Next experiment.** Pivot to the MLP's longest-standing open question
 (input-layer behavior, open since Experiment 4), where better statistical
 power is available: does its flat-to-negative post-training

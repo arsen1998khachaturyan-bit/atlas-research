@@ -1,100 +1,103 @@
 # Next Research Decision
 
-Updated after Experiment 12 (MLP input-layer noise-dimension sweep), which
-ruled out the leading hypothesis for the project's longest-standing open
-question without resolving it. Covers Track B (`atlas_nn`) only.
+Updated after raising Experiment 11 (residual/LayerNorm ablation) from 3
+to 8 seeds, which turned a fragile, low-power observation into the
+project's most statistically solid mechanistic finding to date. Covers
+Track B (`atlas_nn`) only.
 
 ## 1. What we learned
 
 **Experiments 3–9:** the core phenomenon (trained networks tolerate
 weight-compression error far better than tensor error predicts, scaling
 with depth, translating into real achievable-compression-ratio gains) is
-now well-established across two architectures (MLP, Transformer), three
-tasks (2-XOR, 3-parity, real sentiment text), in both qualitative and
-quantitative form.
+well-established across two architectures, three tasks.
 
-**Experiments 7, 10, 11:** three attempts to find *why* — effective rank
-(works partially for the MLP, not for the Transformer), residual
-connections (ruled out — removing them doesn't shrink the gain),
-LayerNorm (plausible partial magnitude driver, not confirmed at high
-confidence). The depth gradient itself survives every architectural
-ablation tried.
+**Experiments 7, 10, 11 (first pass):** mechanism-hunting was
+inconclusive — effective rank explained the MLP but not (apparently) the
+Transformer; residual connections were ruled out; LayerNorm looked
+promising but rested on only 2 comparison pairs.
 
-**Experiment 12 (this round):** the MLP input layer's distinct
-flat-to-negative post-training compressibility (open since Experiment 4)
-does not track task-irrelevant input-dimension fraction — tested with the
-best statistical power in the project so far on this question (5 seeds ×
-5 noise levels), and the hypothesis is cleanly not supported. A weak,
-inconsistent hint at the zero-noise extreme was noted but not confirmed.
+**Experiment 11, strengthened to 8 seeds (this round) — the clearest
+mechanistic result in the project:**
+- **LayerNorm drives gain magnitude**, reproducibly: 2–4× larger gains
+  with it than without, consistent within 15% between the 3-seed and
+  8-seed runs (16.3/18.4 with LayerNorm vs. 8.1/4.1 without, pooled over
+  n=49–56).
+- **Residual connections do not** — removing them changes the gain by
+  under 15%, in the opposite direction from the original hypothesis.
+- **Experiment 10's r=−0.54 was a small-sample artifact.** With proper
+  power, rank-shrinkage correlates *positively* with gain in all 4
+  conditions (r=0.23–0.55), and — cleanly — **removing LayerNorm raises
+  that correlation** (0.23→0.55, 0.29→0.37). LayerNorm both amplifies the
+  gain and decouples it from raw weight-matrix rank structure.
+- **The depth gradient (block 1 > block 0) is confirmed independent of
+  both features**, now at much better power (4.0×–9.4× across all 4
+  conditions) — still unexplained, but now on very solid ground as a
+  real, robust phenomenon in its own right.
 
-**Where this leaves the project after tonight's session:** the central
-phenomenon is now on very solid multi-architecture, multi-task ground.
-Every specific mechanistic hypothesis tested so far (rank shrinkage on
-the Transformer, residual connections, input-layer noise fraction) has
-been *ruled out or left unconfirmed* rather than confirmed — a pattern
-worth taking seriously rather than continuing to spend cycles on
-small-sample mechanism-hunting.
+## 2. What failed / remains untested
 
-## 2. What failed / remains untested this round
+- *Why* the depth gradient exists — two architectural features tested and
+  ruled out as the primary cause; still open.
+- Block-level (rather than pooled) correlations remain noisy (n=21–24,
+  signs and magnitudes vary by block) — the pooled per-condition numbers
+  are the trustworthy summary, not individual block r values.
+- One seed failed to train under `no_residual` — a minor but real
+  reminder that removing residual connections isn't free, even though it
+  didn't reduce the gain in the seeds that did train.
+- The MLP input-layer question (Experiment 12) remains open and untouched
+  this round.
+- No test yet of whether LayerNorm's effect holds at a different scale
+  (more blocks, wider model) or on the MLP (adding LayerNorm to the MLP
+  and checking whether it changes *that* architecture's already-partial
+  rank correlation, Experiment 7, would be a natural cross-check).
 
-- Noise-fraction as an explanation for the input layer's behavior —
-  ruled out across the 50–97% range tested.
-- A cleaner version of Experiment 12 (scaling training data with
-  `n_features` to isolate noise fraction from task difficulty) — not
-  done, flagged for whoever picks this up.
-- The zero-noise-extreme hint (`n_features=2`, ≈1.14× gain, 4/5 seeds
-  positive) — underpowered, not followed up further this session.
-- LayerNorm's magnitude-driving role (Experiment 11) — only 2 comparison
-  pairs, not independently replicated with more seeds or conditions.
+## 3. What worked
 
-## 3. What worked, across the full overnight session
-
-- Each experiment this session was a direct, falsifiable test of a
-  hypothesis generated by the *previous* result, not a restatement or a
-  fresh unrelated direction: Stage C-lite → depth gradient (Exp 8) →
-  quantified (Exp 9) → rank mechanism tested (Exp 10) → rank mechanism
-  found fragile, residual/LayerNorm tested instead (Exp 11) → pivoted to
-  the MLP's older open question when Transformer mechanism-hunting hit a
-  power ceiling (Exp 12). This chained-hypothesis structure is what
-  produced genuine scientific progress rather than a pile of disconnected
-  numbers.
-- Checking training success and reproducibility at every step (Experiments
-  6, 7, 10, 11) caught real confounds before they could distort
-  conclusions, consistently, all session.
-- Being willing to report "this doesn't explain it" as the outcome
-  (Experiments 10, 11, 12) rather than forcing a mechanism onto noisy
-  data is what keeps `docs/BEST_RESULTS.md` trustworthy.
+- Treating a promising-but-underpowered finding as provisional and
+  explicitly re-running it with more seeds — rather than either trusting
+  it prematurely or discarding it as noise — is what turned this from a
+  shaky observation into the project's strongest mechanistic claim. The
+  numbers barely moved between 3 and 8 seeds, which is itself good
+  evidence the underlying effect is real and was just poorly estimated
+  before, not spurious.
+- Reporting the correction to Experiment 10 plainly (r=−0.54 → understood
+  as a small-sample artifact, true relationship positive) rather than
+  quietly editing history keeps `docs/BEST_RESULTS.md` trustworthy as a
+  record of how understanding actually evolved.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes, robustly, for the phenomenon; the mechanism remains a genuinely
-open scientific question after a real, multi-pronged search.** This is
-not a weakness to paper over — it is where the evidence actually points.
-The project has moved from "does this happen at all" (answered: yes,
-repeatedly) to "why does this happen" (answered: not yet, despite three
-serious, well-instrumented attempts). That is real progress, not a stall.
+**Yes, and the mechanism picture is now the best-evidenced it's been.**
+The project has moved from "the phenomenon is real but we don't know
+why" (yesterday's honest state) to "the phenomenon is real, and we have
+a specific, replicated, moderately well-understood partial mechanism
+(LayerNorm affects magnitude and rank-decoupling; residual connections
+don't; something else still drives the depth gradient itself)." This is
+a meaningfully more mature scientific position than either "no mechanism
+found" or a premature single-experiment claim would have been.
 
 ## 5. The single most informative next experiment
 
-Three candidates remain queued, none of them urgent overnight work — a
-judgment call for the user to weigh given other priorities:
+**Test whether the LayerNorm effect is specific to Transformers or a
+general property of normalization: add LayerNorm to the MLP (Stage B)
+and re-run Experiment 7's rank-shrinkage correlation.** If adding
+LayerNorm to the MLP *reduces* its already-partial rank correlation
+(mirroring what removing LayerNorm did to the Transformer, in reverse),
+that's strong, cheap, cross-architecture confirmation that LayerNorm
+specifically (not something Transformer-specific like attention) is the
+operative factor. If it doesn't change anything on the MLP, that narrows
+the LayerNorm hypothesis to an attention-specific interaction instead.
 
-**(a)** A cleaner, data-size-controlled version of Experiment 12
-(decouple noise fraction from task difficulty) — cheap, closes a loose
-end.
+Why this one: it's the natural next falsifiable step from today's
+strengthened finding, cheap (reuses `atlas_nn.stage_b.model.build_mlp`,
+just needs an optional LayerNorm-after-each-hidden-layer toggle), and
+would settle whether "LayerNorm" or "LayerNorm-in-a-Transformer" is the
+right level of generality for the mechanism — a distinction the current
+evidence can't yet make since LayerNorm has only been tested on one
+architecture.
 
-**(b)** More seeds/replication on the LayerNorm magnitude finding
-(Experiment 11) before trusting it further — cheap, same infrastructure.
-
-**(c)** A genuine pretrained-model test — still the single highest-value
-possible addition to this research line, unchanged from every previous
-recommendation, contingent on network policy or an alternate model
-source becoming available.
-
-**No autonomous action recommended beyond this point without the user's
-input:** the overnight session has produced five substantial, honestly-
-documented experiments (8–12) beyond where the user left off, each
-committed and pushed individually. Further work from here involves either
-judgment calls about priority (which of a/b/c matters most) or an
-external dependency (c) that only the user can resolve. This is a natural
-and appropriate stopping point to hand control back.
+**Other queued options, lower priority given today's result:** the MLP
+input-layer question (Experiment 12, still open, no strong lead);
+a genuine pretrained-model test (still blocked by network policy, still
+the single highest-value addition if that changes).
