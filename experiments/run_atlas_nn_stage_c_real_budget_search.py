@@ -37,20 +37,24 @@ from atlas_nn.stage_c_real.model import (
 
 RANDOM_SEEDS = (11, 22, 33)
 QUALITY_THRESHOLD = 0.05
-BUDGET_SEARCH_BLOCKS = (0, 5)
 BUDGET_SEARCH_SUFFIXES = ("attn.c_proj", "mlp.c_fc", "mlp.c_proj")
+# distilgpt2 (6 blocks) was the original target; per-model overrides let a
+# second model (e.g. gpt2, 12 blocks) pick its own first/last block pair
+# instead of reusing distilgpt2's block indices verbatim.
+BUDGET_SEARCH_BLOCKS_OVERRIDE = {"distilgpt2": (0, 5), "gpt2": (0, 11)}
 
 
-def budget_search_layer_names() -> list[str]:
+def budget_search_layer_names(model_name: str = "distilgpt2") -> list[str]:
+    blocks = BUDGET_SEARCH_BLOCKS_OVERRIDE[model_name]
     return [
         f"transformer.h.{block}.{suffix}"
-        for block in BUDGET_SEARCH_BLOCKS
+        for block in blocks
         for suffix in BUDGET_SEARCH_SUFFIXES
     ]
 
 
-def run_state(model, state_label: str, seed: int, x_eval, all_searches: list) -> None:
-    for layer_name in budget_search_layer_names():
+def run_state(model, state_label: str, seed: int, x_eval, all_searches: list, model_name: str) -> None:
+    for layer_name in budget_search_layer_names(model_name):
         layer_shape = tuple(get_weight(model, layer_name).shape)
         search = run_budget_search(
             model=model,
@@ -78,32 +82,32 @@ def run_state(model, state_label: str, seed: int, x_eval, all_searches: list) ->
         )
 
 
-def main() -> None:
-    tokenizer = load_tokenizer()
+def main(model_name: str = "distilgpt2", output_path: str = "results/atlas_nn_stage_c_real_budget_search.json") -> None:
+    tokenizer = load_tokenizer(model_name)
     x_eval = build_eval_batch(tokenizer)
 
     all_searches: list = []
 
-    pretrained_model = load_pretrained()
-    run_state(pretrained_model, "pretrained", seed=0, x_eval=x_eval, all_searches=all_searches)
+    pretrained_model = load_pretrained(model_name)
+    run_state(pretrained_model, "pretrained", seed=0, x_eval=x_eval, all_searches=all_searches, model_name=model_name)
     del pretrained_model
 
     for seed in RANDOM_SEEDS:
-        random_model = load_random_init(seed)
-        run_state(random_model, "random_init", seed=seed, x_eval=x_eval, all_searches=all_searches)
+        random_model = load_random_init(seed, model_name)
+        run_state(random_model, "random_init", seed=seed, x_eval=x_eval, all_searches=all_searches, model_name=model_name)
         del random_model
 
     save_json(
         {
             "experiment": "atlas_nn-stage_c_real_budget_search",
-            "model_name": "distilgpt2",
+            "model_name": model_name,
             "random_seeds": list(RANDOM_SEEDS),
             "quality_threshold": QUALITY_THRESHOLD,
             "quality_metric": "relative_logit_error",
-            "tested_layers": budget_search_layer_names(),
+            "tested_layers": budget_search_layer_names(model_name),
             "searches": all_searches,
         },
-        "results/atlas_nn_stage_c_real_budget_search.json",
+        output_path,
     )
     print("done", flush=True)
 

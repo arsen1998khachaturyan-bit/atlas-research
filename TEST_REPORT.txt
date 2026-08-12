@@ -1,8 +1,8 @@
-71 passed, 1 warning in 24.09s
+71 passed, 1 warning in 188.86s (0:03:08)
 
-(Full clean run after generalizing atlas_nn/stage_c_real/model.py to
-support multiple GPT-2-family models by name, not just distilgpt2. Much
-faster than earlier runs in this session since distilgpt2's weights are
-now cached locally rather than re-downloaded. The one remaining warning
+(Full clean run after generalizing
+experiments/run_atlas_nn_stage_c_real_budget_search.py to accept a
+model_name parameter the same way the smoke-test script was generalized,
+for Experiment 21's gpt2 budget search. The one remaining warning
 (PyTorch nested-tensor prototype-API notice in test_atlas_nn_stage_c_lite.py)
 is pre-existing and unrelated to this session's changes.)
