@@ -996,4 +996,86 @@ of this experiment would scale training data with `n_features` to hold
 task difficulty constant while varying only the noise fraction — not done
 here, noted for anyone extending this.
 
+**Next experiment.** Cross-architecture check of Experiment 11's
+strengthened LayerNorm finding: does adding LayerNorm to the MLP raise
+its rank-shrinkage correlation the way removing LayerNorm raised the
+Transformer's (in reverse)?
+
+---
+
+## Experiment 13 — LayerNorm on the MLP: the rank-decoupling effect generalizes, but the magnitude effect *reverses*
+
+**Hypothesis.** If LayerNorm is the general operative factor behind
+Experiment 11's Transformer findings, adding it to the MLP (which
+otherwise has none) should mirror those findings: larger post-training
+gain, and a *weaker* rank-shrinkage correlation, with LayerNorm than
+without.
+
+**Method.** `experiments/run_atlas_nn_stage_b_layernorm_ablation.py`.
+`atlas_nn.stage_b.model.build_mlp(use_layernorm=...)` inserts
+`nn.LayerNorm` after each hidden block's ReLU. Same 2-XOR task, same
+width, 8 seeds per condition from the start (matching Experiment 11's
+final power) — `layernorm_off` (the original Stage B architecture) vs.
+`layernorm_on`.
+
+**Result — mixed, cleanly split into a generalizing part and a
+reversing part (pooled over all 3 layers, n=24 per condition):**
+
+| condition | mean robustness gain | rank-shrinkage correlation (Pearson) |
+|---|---|---|
+| layernorm_off (baseline) | 9.7 | 0.59 |
+| layernorm_on | 2.9 | 0.16 |
+
+**The decoupling direction generalizes:** adding LayerNorm to the MLP
+weakens its rank-shrinkage correlation (0.59→0.16), the same direction
+Experiment 11 found on the Transformer (LayerNorm present → 0.23–0.29,
+LayerNorm absent → 0.37–0.55 — presence of LayerNorm consistently
+associated with a *weaker* correlation in both architectures).
+
+**The magnitude direction reverses:** on the Transformer, LayerNorm
+roughly **doubled-to-quadrupled** the gain. On the MLP, LayerNorm
+**shrinks** the gain by roughly 3.3× (9.7→2.9) — the opposite sign.
+LayerNorm amplifies the effect in one architecture and suppresses it in
+the other.
+
+**Per-layer breakdown shows the effect is concentrated exactly where the
+MLP's capacity-slack mechanism already lives — the hidden layer:**
+
+| layer | layernorm_off gain | layernorm_on gain | layernorm_off rank shrinkage | layernorm_on rank shrinkage |
+|---|---|---|---|---|
+| input | 2.3 | 2.1 | 0.06 | 0.04 |
+| hidden | **25.3** | **5.1** | 0.36 | 0.19 |
+| output | 1.5 | 1.5 | 0.26 | 0.20 |
+
+Input and output layers are essentially unaffected by adding LayerNorm
+(consistent with the input layer's already-established inertness to
+every manipulation tried since Experiment 4, and the output layer's
+known small-matrix/overhead-dominated behavior). The entire
+magnitude-suppression and rank-decoupling effect is concentrated in the
+hidden layer — exactly the layer where the MLP's original capacity-slack
+finding (Experiments 4, 6) was strongest.
+
+**Interpretation.** LayerNorm has (at least) two separable effects, and
+only one generalizes across architectures tested so far: it consistently
+weakens the relationship between a layer's own rank shrinkage and its
+compression/robustness gain (present in both MLP and Transformer,
+localized to whichever layer already carries the capacity-slack effect
+in each architecture) — but its effect on the *size* of that gain is
+architecture-dependent, amplifying on the Transformer and suppressing on
+the MLP. This rules out "LayerNorm generically helps" as a complete
+explanation and points toward an interaction between LayerNorm and
+something Transformer-specific (attention is the obvious remaining
+candidate, not yet tested in isolation) for the magnitude effect
+specifically, while the decoupling effect looks like a more general
+property of normalization itself.
+
+**Falsification value.** A clean split like this — one part of a
+hypothesis replicating, one part reversing — is more informative than
+either a full confirmation or a full failure would have been: it forces
+the mechanism question to be more specific ("LayerNorm decouples rank
+from gain, generally; something else about the Transformer determines
+whether LayerNorm's net effect on magnitude is positive or negative")
+rather than leaving "LayerNorm explains it" as an intact, oversimplified
+claim.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

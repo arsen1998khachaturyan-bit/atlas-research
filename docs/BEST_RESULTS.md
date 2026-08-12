@@ -411,6 +411,55 @@ unexplained — this result narrows candidate mechanisms (rules out
 residual connections as the primary driver, implicates LayerNorm for
 magnitude specifically) without fully resolving the question.
 
+> **⚠ Update after Experiment 13 (LayerNorm added to the MLP):** the
+> *magnitude* half of this claim ("LayerNorm amplifies the gain") does
+> **not** generalize to the MLP — adding LayerNorm there *shrinks* the
+> gain by ~3.3× (9.7→2.9), the opposite sign from the Transformer. The
+> *decoupling* half ("LayerNorm weakens the rank-shrinkage correlation")
+> **does** generalize (MLP: 0.59→0.16, same direction as the
+> Transformer's 0.55→0.23 / 0.37→0.29). Read this entry's magnitude claim
+> as scoped to the Transformer specifically, not as a property of
+> LayerNorm in general — see the new entry below for the full picture.
+
+---
+
+## VERIFIED RESULT: LayerNorm's rank-decoupling effect generalizes across architectures; its magnitude effect reverses sign
+
+**Claim.** Adding `nn.LayerNorm` to the plain MLP (which otherwise has
+none) reproduces one half of Experiment 11's Transformer finding and
+inverts the other. Reproduced: LayerNorm presence weakens the
+relationship between a layer's rank shrinkage and its post-training gain
+in **both** architectures (MLP: Pearson r 0.59→0.16 with LayerNorm added;
+Transformer: 0.55→0.23 and 0.37→0.29 with LayerNorm *removed* — same
+direction, LayerNorm present ⇒ weaker correlation, either way). Reversed:
+LayerNorm **shrinks** the MLP's gain magnitude by ~3.3× (9.7→2.9) where
+it had **amplified** the Transformer's by 2–4×. Both effects are
+concentrated in the layer where each architecture's capacity-slack
+mechanism already lives (the MLP's hidden layer: gain 25.3→5.1, rank
+shrinkage 0.36→0.19 with LayerNorm added; the input and output layers are
+essentially unaffected either way).
+
+**How verified.** `experiments/run_atlas_nn_stage_b_layernorm_ablation.py`,
+8 seeds per condition (matching Experiment 11's final power from the
+start), same 2-XOR task and width as the original Stage B experiments.
+Reproduce with
+`python -m experiments.run_atlas_nn_stage_b_layernorm_ablation` (writes
+`results/atlas_nn_stage_b_layernorm_ablation.json`).
+
+**Why this is more useful than either a clean confirmation or a clean
+refutation would have been.** It splits a single bundled claim
+("LayerNorm explains the Transformer's gain") into two genuinely separate
+sub-claims with different scopes: rank-decoupling looks like a general
+property of normalization; magnitude amplification looks specific to
+something about the Transformer (attention is the untested remaining
+candidate). Forces the next mechanism question to be more precise than
+"is it LayerNorm" — see `docs/NEXT_RESEARCH_DECISION.md`.
+
+**Scope.** One task (2-XOR), one width, 8 seeds — solid within this
+setup, not yet tested on a harder MLP task or a different width, and the
+underlying reason for the magnitude-sign reversal is not identified,
+only located (concentrated in the hidden layer, absent from input/output).
+
 ---
 
 ## OBSERVATION: the MLP input layer's compressibility does not track task-irrelevant input noise fraction (a specific hypothesis ruled out, not confirmed)
