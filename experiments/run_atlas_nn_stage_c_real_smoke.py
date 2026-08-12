@@ -34,6 +34,7 @@ from atlas_nn.stage_c_real.model import (
     load_tokenizer,
     set_weight,
     snapshot,
+    tested_layer_names,
 )
 from atlas_nn.structural import block_dictionary_transform
 
@@ -85,13 +86,13 @@ def run_state(model, state_label: str, seed: int, x_eval, all_rows: list) -> Non
             )
 
 
-def main() -> None:
-    tokenizer = load_tokenizer()
+def main(model_name: str = "distilgpt2", output_path: str = "results/atlas_nn_stage_c_real_smoke.json") -> None:
+    tokenizer = load_tokenizer(model_name)
     x_eval = build_eval_batch(tokenizer)
 
     all_rows: list = []
 
-    pretrained_model = load_pretrained()
+    pretrained_model = load_pretrained(model_name)
     pretrained_acc = evaluate(pretrained_model, x_eval, None)["accuracy"]
     print(f"pretrained next-token accuracy on eval batch: {pretrained_acc:.3f}", flush=True)
     run_state(pretrained_model, "pretrained", seed=0, x_eval=x_eval, all_rows=all_rows)
@@ -99,7 +100,7 @@ def main() -> None:
 
     random_accuracies = {}
     for seed in RANDOM_SEEDS:
-        random_model = load_random_init(seed)
+        random_model = load_random_init(seed, model_name)
         random_acc = evaluate(random_model, x_eval, None)["accuracy"]
         random_accuracies[seed] = random_acc
         print(f"seed={seed} random-init next-token accuracy: {random_acc:.3f}", flush=True)
@@ -109,14 +110,14 @@ def main() -> None:
     save_json(
         {
             "experiment": "atlas_nn-stage_c_real_smoke",
-            "model_name": "distilgpt2",
+            "model_name": model_name,
             "random_seeds": list(RANDOM_SEEDS),
             "pretrained_accuracy": pretrained_acc,
             "random_init_accuracies": random_accuracies,
-            "tested_layers": linear_layer_names(None),
+            "tested_layers": linear_layer_names(None) if model_name == "distilgpt2" else tested_layer_names(model_name),
             "rows": all_rows,
         },
-        "results/atlas_nn_stage_c_real_smoke.json",
+        output_path,
     )
     print("done", flush=True)
 

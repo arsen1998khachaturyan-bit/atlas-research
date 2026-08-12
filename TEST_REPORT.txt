@@ -1,11 +1,8 @@
-71 passed, 1 warning (confirmed after the tested_layer_names import-alias
-fix): "63 passed, 1 warning in 466.12s" for tests/ minus
-test_atlas_nn_stage_c_real.py, plus "8 passed in 28.68s" for
-test_atlas_nn_stage_c_real.py run standalone. The one remaining warning
-(PyTorch nested-tensor prototype-API notice in test_atlas_nn_stage_c_lite.py)
-is pre-existing and unrelated to this session's changes.
+71 passed, 1 warning in 24.09s
 
-(Earlier in this session, before the fix: "72 passed, 2 warnings" -- the
-extra "test" and warning were a pytest test-collection artifact: an
-imported `tested_layer_names` helper was picked up as a test function
-because its name starts with "test". Fixed by aliasing the import.)
+(Full clean run after generalizing atlas_nn/stage_c_real/model.py to
+support multiple GPT-2-family models by name, not just distilgpt2. Much
+faster than earlier runs in this session since distilgpt2's weights are
+now cached locally rather than re-downloaded. The one remaining warning
+(PyTorch nested-tensor prototype-API notice in test_atlas_nn_stage_c_lite.py)
+is pre-existing and unrelated to this session's changes.)

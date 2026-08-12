@@ -18,52 +18,67 @@ MODEL_NAME = "distilgpt2"
 # nn.Linear) -- compression/reconstruction here treats weights as generic
 # 2D arrays, so the orientation doesn't matter.
 #
-# A real 82M-parameter model cannot be swept layer-by-layer at the same
+# A real pretrained model cannot be swept layer-by-layer at the same
 # statistical power as the tiny Stage B/C-lite models on CPU in one session
 # (full budget search is a ~31-config sweep per layer per method family).
 # Instead we test a fixed, depth-and-type-balanced subset: the first,
-# middle, and last of distilgpt2's 6 blocks, times all 4 sublayer types --
-# 12 layers total, chosen for coverage across depth rather than exhaustive
-# coverage of every layer. This scope choice is deliberate and documented,
-# not hidden.
-TESTED_BLOCKS = (0, 3, 5)
+# middle, and last transformer block, times all 4 sublayer types. This
+# scope choice is deliberate and documented, not hidden.
+#
+# distilgpt2's blocks were pinned by hand (0, 3, 5) when this module only
+# supported one model. `_tested_blocks_for` generalizes this to any GPT-2
+# family model (used by Experiment 20's cross-model generalization check)
+# by deriving first/middle/last from that model's own `config.n_layer`,
+# while keeping distilgpt2's original explicit choice unchanged.
 SUBLAYER_SUFFIXES = ("attn.c_attn", "attn.c_proj", "mlp.c_fc", "mlp.c_proj")
+_TESTED_BLOCKS_OVERRIDE = {"distilgpt2": (0, 3, 5)}
 
 
-def tested_layer_names() -> list[str]:
+def _tested_blocks_for(model_name: str) -> tuple[int, ...]:
+    if model_name in _TESTED_BLOCKS_OVERRIDE:
+        return _TESTED_BLOCKS_OVERRIDE[model_name]
+    n_layer = AutoConfig.from_pretrained(model_name).n_layer
+    return tuple(sorted({0, n_layer // 2, n_layer - 1}))
+
+
+def _model_name_of(model) -> str:
+    return getattr(model.config, "_name_or_path", MODEL_NAME) or MODEL_NAME
+
+
+def tested_layer_names(model_name: str = MODEL_NAME) -> list[str]:
     return [
         f"transformer.h.{block}.{suffix}"
-        for block in TESTED_BLOCKS
+        for block in _tested_blocks_for(model_name)
         for suffix in SUBLAYER_SUFFIXES
     ]
 
 
 def linear_layer_names(model) -> list[str]:
-    del model  # interface parity with atlas_nn.stage_b.model.linear_layer_names
-    return tested_layer_names()
+    model_name = MODEL_NAME if model is None else _model_name_of(model)
+    return tested_layer_names(model_name)
 
 
-def load_tokenizer():
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+def load_tokenizer(model_name: str = MODEL_NAME):
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
     return tokenizer
 
 
-def load_pretrained():
-    """The real, trained distilgpt2 checkpoint -- exactly one instance
-    exists (there is no 'seed' for a fixed pretrained checkpoint)."""
-    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+def load_pretrained(model_name: str = MODEL_NAME):
+    """The real, trained checkpoint -- exactly one instance exists (there
+    is no 'seed' for a fixed pretrained checkpoint)."""
+    model = AutoModelForCausalLM.from_pretrained(model_name)
     model.eval()
     return model
 
 
-def load_random_init(seed: int):
-    """Same architecture and config as distilgpt2, freshly initialized
+def load_random_init(seed: int, model_name: str = MODEL_NAME):
+    """Same architecture and config as `model_name`, freshly initialized
     (no training at all) -- the random-init comparison arm, analogous to
     Stage B/C-lite's snapshot-before-training but here there is no
     training step to snapshot before, so this directly instantiates the
     untrained network."""
-    config = AutoConfig.from_pretrained(MODEL_NAME)
+    config = AutoConfig.from_pretrained(model_name)
     torch.manual_seed(seed)
     model = AutoModelForCausalLM.from_config(config)
     # from_config's own init already consumed the seeded RNG state above;
@@ -92,7 +107,8 @@ def snapshot(model) -> dict:
     runtime for no benefit, since only one tested layer's weight ever
     changes between a `snapshot` and its matching `load_snapshot`."""
     modules = dict(model.named_modules())
-    return {name: modules[name].weight.detach().clone() for name in tested_layer_names()}
+    names = tested_layer_names(_model_name_of(model))
+    return {name: modules[name].weight.detach().clone() for name in names}
 
 
 def load_snapshot(model, state: dict) -> None:
