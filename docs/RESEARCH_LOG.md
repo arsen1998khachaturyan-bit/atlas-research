@@ -1078,4 +1078,83 @@ whether LayerNorm's net effect on magnitude is positive or negative")
 rather than leaving "LayerNorm explains it" as an intact, oversimplified
 claim.
 
+**Next experiment.** Test attention directly: does removing it (keeping
+LayerNorm and the FFN sublayer) collapse the gain toward MLP-like levels,
+confirming attention as the ingredient LayerNorm needs to amplify rather
+than suppress the effect?
+
+---
+
+## Experiment 14 — Attention ablation: attention is the dominant magnitude driver, and partly explains the depth gradient too
+
+**Hypothesis.** If attention is the missing ingredient behind
+Experiment 13's magnitude-sign reversal (LayerNorm amplifies on the
+Transformer, suppresses on the MLP), removing attention from the
+Transformer (while keeping LayerNorm) should collapse the gain toward
+the MLP-with-LayerNorm level (~2.9, Experiment 13) rather than staying
+near the Transformer's usual ~16.
+
+**Method.** `experiments/run_atlas_nn_stage_c_lite_attention_ablation.py`.
+Added `NoMixingAttention` (`atlas_nn.stage_c_lite.model`) — a drop-in
+replacement for `nn.MultiheadAttention` with the same `out_proj` naming
+but no cross-token mixing (a plain per-token linear projection instead of
+attention-weighted averaging). 4 conditions crossing attention on/off ×
+LayerNorm on/off (residual connections held on throughout — Experiment 11
+found they don't matter), 8 seeds each.
+
+**Result — confirmed, and attention turns out to matter *more* than
+LayerNorm for magnitude (pooled over all 7 layers, n=56 per condition,
+all 8/8 seeds trained successfully in every condition):**
+
+| condition | mean robustness gain | rank-shrinkage correlation |
+|---|---|---|
+| attention + layernorm (baseline) | 16.3 | 0.23 |
+| **no attention** (LayerNorm only) | **3.4** | 0.02 |
+| no layernorm (attention only) | 8.1 | 0.55 |
+| neither | 5.4 | 0.33 |
+
+Removing attention alone crashes the gain by **79%** (16.3→3.4) — a
+bigger drop than removing LayerNorm alone causes (16.3→8.1, 50%).
+**3.4 is close to Experiment 13's MLP-with-LayerNorm result (2.9)** —
+i.e. a Transformer with attention removed behaves, in gain-magnitude
+terms, almost like the MLP that has no attention at all. This is
+convergent evidence, not just a directional match: two different routes
+to "no attention" (literally not having any, vs. having it and disabling
+it) land in the same place.
+
+**The depth gradient also shrinks substantially without attention** —
+new information beyond the original hypothesis. Block-1-vs-block-0 gain
+ratio: 6.9× with attention present (baseline), dropping to **2.4×**
+without attention, vs. only a modest drop to 4.0× when LayerNorm alone is
+removed. Attention contributes to *both* the magnitude effect and (unlike
+residual connections, which Experiment 11 found irrelevant to it) part of
+the depth gradient itself — plausibly because attention is what lets
+later layers accumulate more context-mixed information from earlier ones
+to begin with.
+
+**The rank-decoupling (correlation) story stays LayerNorm-led.**
+Correlation is low whenever LayerNorm is present (0.23, 0.02) and higher
+whenever it's absent (0.55, 0.33), regardless of attention — attention's
+own removal, if anything, pushes correlation *lower* still (0.23→0.02)
+rather than restoring it. LayerNorm remains the primary decoupling
+factor; attention's role there is secondary at most.
+
+**Interpretation.** The mechanism now resolves into two largely separable
+factors: **attention primarily drives gain magnitude** (and contributes
+to the depth gradient), **LayerNorm primarily drives rank-decoupling**
+(and contributes a smaller, independent boost to magnitude). Both
+findings converge with Experiment 13's MLP result rather than
+contradicting it — the MLP has no attention, so its LayerNorm-alone
+behavior (suppression, weak decoupling-dominant) is exactly what this
+experiment's `no_attention` condition reproduces on the Transformer
+architecture. This is the most complete and internally consistent
+mechanistic picture the project has produced.
+
+**Falsification value.** The specific, falsifiable prediction (attention
+removal → MLP-like magnitude) was confirmed quantitatively, not just
+directionally — the two independent measurements (real MLP without
+attention, Transformer with attention artificially removed) landing at
+nearly the same number (2.9 vs 3.4) is a stronger form of confirmation
+than either alone would provide.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

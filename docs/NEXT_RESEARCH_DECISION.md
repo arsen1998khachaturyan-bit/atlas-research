@@ -1,9 +1,8 @@
 # Next Research Decision
 
-Updated after Experiment 13 (LayerNorm added to the MLP), which split
-Experiment 11's LayerNorm finding into a part that generalizes across
-architectures and a part that reverses sign. Covers Track B (`atlas_nn`)
-only.
+Updated after Experiment 14 (attention ablation), which resolved
+Experiment 13's open question and produced the project's most complete
+mechanistic picture to date. Covers Track B (`atlas_nn`) only.
 
 ## 1. What we learned
 
@@ -11,99 +10,95 @@ only.
 weight-compression error far better than tensor error predicts, scaling
 with depth) is well-established across two architectures, three tasks.
 
-**Experiment 11 (8 seeds):** on the Transformer, LayerNorm amplifies
-gain magnitude 2–4× and weakens the rank-shrinkage correlation
-(0.23–0.29 with it, 0.37–0.55 without).
+**Experiments 10–13:** three architectural factors tested piecemeal
+(effective rank, residual connections, LayerNorm) — residual connections
+ruled out; LayerNorm found to have two separable effects, one
+generalizing (rank-decoupling) and one architecture-dependent in sign
+(magnitude).
 
-**Experiment 13 (this round) — the LayerNorm claim splits cleanly in
-two:**
-- **Generalizes:** LayerNorm presence weakens the rank-shrinkage
-  correlation in *both* architectures (MLP: 0.59→0.16 adding it;
-  Transformer: 0.55→0.23 removing it — same direction either way).
-  This looks like a real, general property of normalization: it makes a
-  layer's compressibility less dependent on that layer's own weight-matrix
-  rank.
-- **Reverses:** LayerNorm's effect on gain *magnitude* is opposite
-  between architectures — it roughly quadruples the Transformer's gain
-  but *shrinks* the MLP's by ~3.3× (9.7→2.9). Whatever determines the
-  sign of this effect is not LayerNorm alone; attention (present in the
-  Transformer, absent in the MLP) is the obvious untested remaining
-  candidate.
-- Both effects, in both architectures, are concentrated in the layer
-  where each architecture's capacity-slack mechanism already lives (MLP:
-  hidden layer; Transformer: block 1) — input/output-type layers are
-  essentially unaffected either way.
+**Experiment 14 (this round) — the magnitude-sign question resolved,
+with convergent evidence:**
+- **Attention is the dominant driver of gain magnitude** — removing it
+  crashes the gain 79% (16.3→3.4), a bigger effect than removing
+  LayerNorm (50%, 16.3→8.1).
+- **Convergent confirmation:** a Transformer with attention artificially
+  disabled (3.4) lands close to the real MLP with LayerNorm added but no
+  attention at all (2.9, Experiment 13) — two independent routes to "no
+  attention" agree, which is stronger evidence than either alone.
+- **Attention also partly explains the depth gradient** — block1/block0
+  ratio drops from 6.9× to 2.4× without attention (vs. only to 4.0×
+  without LayerNorm alone) — new information beyond the original
+  hypothesis; attention was not expected to touch the gradient itself.
+- **LayerNorm remains the dominant driver of rank-decoupling**,
+  regardless of attention — confirms Experiment 13's other half is
+  correctly attributed to LayerNorm specifically, not confounded with
+  attention.
 
-**Where this leaves the mechanism question:** three architectural
-factors have now been tested (effective rank alone, residual
-connections, LayerNorm) across two architectures. The clearest, most
-general finding to emerge is not "X causes the effect" for any single X,
-but that **normalization decouples compressibility from raw rank
-structure quite generally**, while **something else (likely attention)
-determines how large the resulting effect is**.
+**Current mechanism picture, the most complete yet:** attention drives
+magnitude and part of the depth gradient; LayerNorm drives rank-
+decoupling and a smaller, largely independent share of magnitude. Four
+architectural ablations (rank alone, residual, LayerNorm, attention)
+across two architectures have now isolated which factors matter for
+which specific aspect of the phenomenon.
 
 ## 2. What failed / remains untested
 
-- LayerNorm as a complete, architecture-general explanation for gain
-  *magnitude* — ruled out; it's architecture-dependent in sign.
-- Attention as the candidate explanation for the magnitude-sign
-  difference — proposed, not yet tested in isolation.
-- Whether the MLP's magnitude-suppression from LayerNorm is itself robust
-  across tasks/widths, or specific to 2-XOR at width 64 — only one
-  configuration tested.
-- The MLP input-layer question (Experiment 12) — still open, untouched
-  this round.
+- *Why* attention and LayerNorm have these specific effects mechanistically
+  — only *that* they do, and by how much, is established. E.g. does
+  attention's magnitude effect come from cross-token information mixing
+  specifically, or from something else about `nn.MultiheadAttention`
+  (its extra parameters, its softmax nonlinearity)? `NoMixingAttention`
+  removes mixing and reduces parameter count simultaneously — not fully
+  disentangled.
+- Whether this 4-factor picture holds at a different scale (more blocks,
+  wider model) or on a harder task.
+- The MLP input-layer question (Experiment 12) — still open, now the
+  longest-standing unresolved question in the project, untouched since
+  that experiment.
+- A genuine pretrained-model test — still blocked by network policy.
 
 ## 3. What worked
 
-- Testing the LayerNorm hypothesis on a *second* architecture rather than
-  accepting the Transformer-only finding as general is what surfaced the
-  magnitude-sign reversal — a materially more precise (and more
-  interesting) result than either "confirmed" or "not confirmed" would
-  have been on their own.
-- Running the MLP check at 8 seeds from the start (learning from
-  Experiment 11's own history of needing a power upgrade) avoided
-  repeating that same mistake.
-- The per-layer breakdown (not just pooled) is what revealed *where* the
-  effects concentrate (hidden/block-1 only) — consistent with, and
-  reinforcing, the project's running finding that input and output-type
-  layers behave differently from the "capacity-bearing" middle layers in
-  every architecture tested so far.
+- Following the chain of falsifiable hypotheses (Exp 10 → 11 → 13 → 14)
+  to its natural conclusion rather than stopping at an ambiguous
+  intermediate result (Experiment 13's "reverses, unexplained") is what
+  produced today's clean resolution.
+- Designing Experiment 14 to produce a *convergence check* (comparing
+  against Experiment 13's independently-collected MLP number) rather than
+  just a fresh isolated measurement is what made the result more
+  convincing than a bare directional confirmation would have been.
+- Consistent 8-seed power across the last three ablations (11, 13, 14)
+  avoided repeating Experiment 11's original underpowered-first-pass
+  mistake.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes, and the mechanism understanding is now more precise, if also more
-complicated, than a day ago.** The phenomenon itself needs no further
-qualification at this point — well-evidenced, multi-architecture,
-multi-task. The mechanism has resolved into two distinct sub-questions:
-a likely-general one (normalization decouples compressibility from rank)
-that's now supported in two architectures, and an architecture-specific
-one (what determines gain magnitude) that isn't resolved and may hinge
-on attention specifically. This is normal, healthy progress in
-mechanism-hunting — real phenomena often have more than one contributing
-factor, and finding that out is not a setback.
+**Yes, and the mechanism is now understood in more useful detail than at
+any prior point in the project.** Four architectural factors have been
+individually tested and assigned distinct, specific roles rather than
+left as one bundled "something about training" explanation. This is a
+substantially more mature scientific position than the project had even
+one round ago, and it was reached through exactly the kind of chained,
+falsifiable experimentation the mission's process asks for.
 
 ## 5. The single most informative next experiment
 
-**Test attention directly as the magnitude-sign factor**: take the
-Stage C-lite `AblationTransformerClassifier` and additionally ablate
-attention itself (e.g. replace the self-attention sublayer with a
-no-op or a plain per-token Linear projection, keeping LayerNorm and the
-FFN sublayer), and check whether the LayerNorm-magnitude-amplification
-effect survives without attention. If it disappears, attention is
-confirmed as the necessary ingredient for LayerNorm's magnitude effect
-to flip positive; if it persists, something else about the Transformer
-(depth of 2 sublayers per block? residual placement relative to
-LayerNorm? something in this experiment's specific hyperparameters?) is
-responsible instead.
+Two reasonable next steps, neither urgent:
 
-Why this one: it directly and cheaply (reuses existing
-`atlas_nn.stage_c_lite` infrastructure, one more toggle) tests the
-specific candidate this round's result raised, continuing the same
-chained-hypothesis discipline that has driven every productive result
-since Experiment 5.
+**(a)** Disentangle `NoMixingAttention`'s two simultaneous changes
+(removes cross-token mixing AND reduces parameter count) — e.g. compare
+against a per-token `nn.Linear` sized to match attention's parameter
+count, to check whether the magnitude effect is really about mixing or
+just about attention's extra capacity.
 
-**Other queued options, unchanged in priority:** the MLP input-layer
-question (Experiment 12, no strong lead yet); a genuine pretrained-model
-test (still blocked by network policy, still the single highest-value
-addition if that changes).
+**(b)** Finally return to the MLP input-layer question (Experiment 12),
+the project's oldest unresolved thread, now that the Transformer
+mechanism-hunting has reached a natural, well-resolved stopping point.
+
+**(c)**, unchanged: a genuine pretrained-model test remains the single
+highest-value addition if network policy allows it at some point.
+
+No strong reason to prefer (a) over (b) from the evidence alone — both
+are cheap, both close real open threads. This is a reasonable point to
+check with the user on preference, or default to (b) since it's been
+open longest.

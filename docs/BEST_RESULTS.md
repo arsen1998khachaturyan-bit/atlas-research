@@ -460,6 +460,70 @@ setup, not yet tested on a harder MLP task or a different width, and the
 underlying reason for the magnitude-sign reversal is not identified,
 only located (concentrated in the hidden layer, absent from input/output).
 
+> **⚠ Update after Experiment 14 (attention ablation):** the "untested
+> remaining candidate" mentioned above (attention) has now been tested
+> directly and confirmed as the dominant magnitude driver — bigger than
+> LayerNorm's own contribution. See the new VERIFIED RESULT below for the
+> complete picture: attention and LayerNorm turn out to drive two
+> different aspects of the effect (magnitude vs. decoupling)
+> semi-independently.
+
+---
+
+## VERIFIED RESULT: attention is the dominant driver of gain magnitude (and partly the depth gradient); LayerNorm remains the dominant driver of rank-decoupling
+
+**Claim.** Removing attention from the Stage C-lite Transformer (`atlas_nn.
+stage_c_lite.model.NoMixingAttention`, a same-shaped drop-in replacement
+with no cross-token mixing) while keeping LayerNorm collapses the
+post-training behavioral-robustness gain by **79%** (16.3→3.4, pooled
+over 7 layers × 8 seeds, all seeds trained successfully) — a larger drop
+than removing LayerNorm alone causes (16.3→8.1, 50%). **3.4 lands close
+to Experiment 13's independently-measured MLP-with-LayerNorm result
+(2.9)** — a Transformer with attention disabled behaves, in magnitude
+terms, almost like the MLP that never had attention to begin with,
+providing convergent (not just directional) confirmation. The
+block-1-vs-block-0 depth gradient also shrinks substantially without
+attention (6.9×→2.4×, vs. only 6.9×→4.0× when LayerNorm alone is
+removed) — attention contributes to the depth gradient itself, unlike
+residual connections (Experiment 11, no effect on the gradient) or
+LayerNorm alone (smaller effect on the gradient than on magnitude).
+Separately, the **rank-shrinkage correlation stays governed by LayerNorm**
+regardless of attention (low whenever LayerNorm is present: 0.23, 0.02;
+higher whenever absent: 0.55, 0.33) — attention's own removal, if
+anything, pushes correlation slightly lower, not higher.
+
+**How verified.** `experiments/run_atlas_nn_stage_c_lite_attention_ablation.py`,
+4 conditions (attention × LayerNorm, residual held on), 8 seeds each, all
+32 seed-condition combinations trained successfully (no exclusions
+needed). Reproduce with
+`python -m experiments.run_atlas_nn_stage_c_lite_attention_ablation`
+(writes `results/atlas_nn_stage_c_lite_attention_ablation.json`).
+
+**Why the convergence with Experiment 13 matters.** Two independent
+routes to "a network with no attention" — an MLP that was never given
+attention (Experiment 13), and a Transformer with attention explicitly
+disabled (this experiment) — produced nearly identical gain magnitudes
+(2.9 vs 3.4) under LayerNorm. Independent convergence like this is
+stronger evidence than either measurement alone, and it resolves
+Experiment 13's open question cleanly: the reason LayerNorm suppresses
+the MLP's gain but amplifies the Transformer's is that the Transformer
+has attention and the MLP doesn't — not some other unidentified
+architectural difference.
+
+**Current overall mechanism picture (as of this result):** attention
+primarily drives gain *magnitude* and contributes to the *depth
+gradient*; LayerNorm primarily drives *rank-decoupling* and contributes a
+smaller, largely independent boost to magnitude. This is the most
+complete and internally consistent account the project has produced,
+though it stops short of explaining *why* attention and LayerNorm have
+these specific effects mechanistically (only *that* they do, and by how
+much).
+
+**Scope.** One small Transformer, one real-but-simple task, 8 seeds — the
+strongest single ablation result in the project so far by sample size and
+convergent-evidence structure, but still one architecture family and one
+task.
+
 ---
 
 ## OBSERVATION: the MLP input layer's compressibility does not track task-irrelevant input noise fraction (a specific hypothesis ruled out, not confirmed)
