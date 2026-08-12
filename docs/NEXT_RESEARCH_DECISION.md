@@ -1,8 +1,9 @@
 # Next Research Decision
 
-Updated after Experiment 14 (attention ablation), which resolved
-Experiment 13's open question and produced the project's most complete
-mechanistic picture to date. Covers Track B (`atlas_nn`) only.
+Updated after Experiment 15 (controlled re-run of the input-layer noise
+sweep), which closed Experiment 12's remaining loose end and left the
+input-layer question more firmly unexplained than before. Covers Track B
+(`atlas_nn`) only.
 
 ## 1. What we learned
 
@@ -10,95 +11,96 @@ mechanistic picture to date. Covers Track B (`atlas_nn`) only.
 weight-compression error far better than tensor error predicts, scaling
 with depth) is well-established across two architectures, three tasks.
 
-**Experiments 10–13:** three architectural factors tested piecemeal
-(effective rank, residual connections, LayerNorm) — residual connections
-ruled out; LayerNorm found to have two separable effects, one
-generalizing (rank-decoupling) and one architecture-dependent in sign
-(magnitude).
+**Experiments 10–14:** four architectural factors individually tested —
+residual connections ruled out; effective rank partially explains the
+MLP; LayerNorm drives rank-decoupling (generalizes across architectures)
+and a secondary magnitude effect; attention is the dominant magnitude
+driver and partly explains the depth gradient. The Transformer mechanism-
+hunting thread reached a well-resolved natural stopping point.
 
-**Experiment 14 (this round) — the magnitude-sign question resolved,
-with convergent evidence:**
-- **Attention is the dominant driver of gain magnitude** — removing it
-  crashes the gain 79% (16.3→3.4), a bigger effect than removing
-  LayerNorm (50%, 16.3→8.1).
-- **Convergent confirmation:** a Transformer with attention artificially
-  disabled (3.4) lands close to the real MLP with LayerNorm added but no
-  attention at all (2.9, Experiment 13) — two independent routes to "no
-  attention" agree, which is stronger evidence than either alone.
-- **Attention also partly explains the depth gradient** — block1/block0
-  ratio drops from 6.9× to 2.4× without attention (vs. only to 4.0×
-  without LayerNorm alone) — new information beyond the original
-  hypothesis; attention was not expected to touch the gradient itself.
-- **LayerNorm remains the dominant driver of rank-decoupling**,
-  regardless of attention — confirms Experiment 13's other half is
-  correctly attributed to LayerNorm specifically, not confounded with
-  attention.
+**Experiment 12:** the MLP input layer's flat-to-negative post-training
+compressibility does not track task-irrelevant input noise fraction — but
+flagged an unresolved data-size confound.
 
-**Current mechanism picture, the most complete yet:** attention drives
-magnitude and part of the depth gradient; LayerNorm drives rank-
-decoupling and a smaller, largely independent share of magnitude. Four
-architectural ablations (rank alone, residual, LayerNorm, attention)
-across two architectures have now isolated which factors matter for
-which specific aspect of the phenomenon.
+**Experiment 15 (this round) — the confound fixed, the null result
+strengthened:** with training data scaled up to equalize task difficulty
+across the noise-fraction sweep (held-out accuracy tightened from a
+73.6%–98.4% band to 91.0%–99.6%), the result holds and is cleaner: gain
+stays at 0.73–1.00 across the entire 0%–97% noise-fraction range, 8
+seeds. The one loose end from Experiment 12 — a weak positive hint at
+zero noise — **disappeared** under better power and control (exactly
+1.00, flat). Noise fraction is now firmly ruled out, not just weakly
+disfavored.
+
+**Where the input-layer question stands after five experiments (4, 6, 7,
+12, 15):** two candidate explanations tested and ruled out (effective
+rank only weakly/inconsistently related; noise fraction cleanly
+unrelated). The behavior itself — no gain, sometimes a penalty, uniquely
+among all layer types in every architecture tested — remains real,
+reproducible, and unexplained.
 
 ## 2. What failed / remains untested
 
-- *Why* attention and LayerNorm have these specific effects mechanistically
-  — only *that* they do, and by how much, is established. E.g. does
-  attention's magnitude effect come from cross-token information mixing
-  specifically, or from something else about `nn.MultiheadAttention`
-  (its extra parameters, its softmax nonlinearity)? `NoMixingAttention`
-  removes mixing and reduces parameter count simultaneously — not fully
-  disentangled.
-- Whether this 4-factor picture holds at a different scale (more blocks,
-  wider model) or on a harder task.
-- The MLP input-layer question (Experiment 12) — still open, now the
-  longest-standing unresolved question in the project, untouched since
-  that experiment.
+- Noise-fraction hypothesis — now cleanly ruled out at good power, not
+  just suggestively disfavored.
+- No new hypothesis for the input layer has been generated this round —
+  Experiment 15 closed a loose end rather than opening a new lead.
+- Whether the input layer's behavior relates to something identified in
+  the Transformer mechanism work (e.g., does an input-facing layer in the
+  Transformer show the same pattern? Not yet checked — the Stage C-lite
+  experiments never singled out an "input-layer" analog since the
+  embedding layer isn't a compressible `nn.Linear` in the same sense).
 - A genuine pretrained-model test — still blocked by network policy.
 
 ## 3. What worked
 
-- Following the chain of falsifiable hypotheses (Exp 10 → 11 → 13 → 14)
-  to its natural conclusion rather than stopping at an ambiguous
-  intermediate result (Experiment 13's "reverses, unexplained") is what
-  produced today's clean resolution.
-- Designing Experiment 14 to produce a *convergence check* (comparing
-  against Experiment 13's independently-collected MLP number) rather than
-  just a fresh isolated measurement is what made the result more
-  convincing than a bare directional confirmation would have been.
-- Consistent 8-seed power across the last three ablations (11, 13, 14)
-  avoided repeating Experiment 11's original underpowered-first-pass
-  mistake.
+- Treating Experiment 12's own flagged confound as unfinished business
+  and returning to fix it, rather than letting a caveat sit indefinitely,
+  produced a cleaner, more trustworthy null result and eliminated a loose
+  thread (the zero-noise hint) that could have misled future work if left
+  unchecked.
+- Verifying the fix empirically (checking the accuracy band actually
+  tightened) before committing to the full 8-seed run avoided wasting
+  compute on a re-run that might not have actually fixed the confound.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes, and the mechanism is now understood in more useful detail than at
-any prior point in the project.** Four architectural factors have been
-individually tested and assigned distinct, specific roles rather than
-left as one bundled "something about training" explanation. This is a
-substantially more mature scientific position than the project had even
-one round ago, and it was reached through exactly the kind of chained,
-falsifiable experimentation the mission's process asks for.
+**Yes, unaffected by this round — the input-layer question is a detail
+of the mechanism, not the core phenomenon.** The central claim (trained
+networks tolerate compression far better than tensor error predicts,
+concentrated in specific layers, deepening with representational depth)
+remains strongly evidenced regardless of whether the input layer's
+distinct non-participation is ever explained. This round's contribution
+is negative-but-valuable: it removes one more wrong explanation from
+consideration and confirms the earlier null result wasn't a measurement
+artifact.
 
 ## 5. The single most informative next experiment
 
-Two reasonable next steps, neither urgent:
+No strong, specific lead remains for the input-layer question after two
+hypotheses (rank, noise fraction) have been tried and both failed. Three
+reasonable paths, in rough order of promise:
 
-**(a)** Disentangle `NoMixingAttention`'s two simultaneous changes
-(removes cross-token mixing AND reduces parameter count) — e.g. compare
-against a per-token `nn.Linear` sized to match attention's parameter
-count, to check whether the magnitude effect is really about mixing or
-just about attention's extra capacity.
+**(a)** Check whether an input-facing layer in the *Transformer*
+architecture shows the same pattern — would test whether "input layers
+are different" is a general phenomenon (worth a real hypothesis-generation
+effort) or MLP-specific (in which case the input-layer question may be
+lower priority than it's been treated).
 
-**(b)** Finally return to the MLP input-layer question (Experiment 12),
-the project's oldest unresolved thread, now that the Transformer
-mechanism-hunting has reached a natural, well-resolved stopping point.
+**(b)** Try a structural/informational hypothesis instead of a capacity
+one: does the input layer's behavior relate to it being the only layer
+whose incoming activations are never normalized or reshaped by a prior
+layer (raw features in, vs. every other layer receiving already-processed
+activations)? Testable cheaply by adding an input-normalization step
+(e.g. z-scoring or a fixed random projection) before the first trainable
+layer and checking whether *that* first trainable layer (now not
+literally seeing raw input) behaves differently.
 
-**(c)**, unchanged: a genuine pretrained-model test remains the single
-highest-value addition if network policy allows it at some point.
+**(c)** Deprioritize this question for now given two clean negative
+results and no strong remaining lead; consider it a standing open
+question in `docs/CURRENT_STATE.md` rather than continuing to spend
+cycles without a promising hypothesis to test.
 
-No strong reason to prefer (a) over (b) from the evidence alone — both
-are cheap, both close real open threads. This is a reasonable point to
-check with the user on preference, or default to (b) since it's been
-open longest.
+**Standing recommendation, unchanged:** a real pretrained checkpoint
+remains the single highest-value possible addition to this research line
+if network policy allows it at some point.

@@ -1157,4 +1157,66 @@ attention, Transformer with attention artificially removed) landing at
 nearly the same number (2.9 vs 3.4) is a stronger form of confirmation
 than either alone would provide.
 
+**Next experiment.** Return to the project's longest-standing open
+question (input layer, since Experiment 4) and re-test the
+noise-fraction hypothesis (Experiment 12) with the data-size confound it
+flagged actually fixed.
+
+---
+
+## Experiment 15 — Controlled input-layer noise sweep: the null result holds, even stronger, and the earlier hint disappears
+
+**Hypothesis.** Experiment 12 found no relationship between input-layer
+compressibility gain and noise fraction, but training data size was held
+fixed while `n_features` varied, so higher-noise conditions were
+confounded with harder generalization problems (held-out accuracy
+73.6%–98.4% across the sweep). If that confound was masking a real
+noise-fraction effect, controlling for it should reveal one.
+
+**Method.** `experiments/run_atlas_nn_stage_b_input_layer_noise_sweep_v2.py`.
+Same 2-XOR sweep as Experiment 12 (`n_features` now 2/4/8/16/32/64,
+adding the zero-noise point to the main sweep instead of as an
+addendum), but `N_TRAIN` raised from 2000 to 8000 — verified beforehand
+to tighten the held-out accuracy band to 91.0%–99.6% across the same
+range. 8 seeds (up from 5).
+
+**Result — the null result holds, is if anything cleaner, and the
+previous weak positive hint at zero noise is gone.**
+
+| n_features | noise fraction | mean gain | held-out accuracy (seed 11) |
+|---|---|---|---|
+| 2 | 0% | **1.00** | 99.6% |
+| 4 | 50% | 0.87 | 99.6% |
+| 8 | 75% | 0.86 | 98.4% |
+| 16 | 87.5% | 0.73 | 97.2% |
+| 32 | 93.8% | 0.94 | 94.8% |
+| 64 | 96.9% | 0.80 | 91.0% |
+
+No trend across the full 0%–97% noise-fraction range — gain sits at
+0.73–1.00 throughout, i.e. no reliable post-training compression gain on
+the input layer at *any* noise level, including now-cleanly-measured zero
+noise. Experiment 12's addendum had shown a weak, inconsistent positive
+hint at `n_features=2` (≈1.14×, 4/5 seeds positive, only 5 seeds, at the
+old `N_TRAIN=2000`) — **that hint is gone at 8 seeds and controlled data
+size** (exactly 1.00, flat). The most likely explanation: it was sampling
+noise from an underpowered measurement, not a real effect.
+
+**Interpretation.** This is a stronger, more definitive version of
+Experiment 12's negative result, not merely a repeat: it rules out both
+the noise-fraction hypothesis *and* the specific loose end (the zero-noise
+hint) that Experiment 12 left open. The input layer's flat-to-negative
+post-training compressibility remains completely unexplained after four
+experiments now (Experiments 4, 6, 7, 12, 15) — noise fraction, effective
+rank, and (implicitly, since it was never differentially affected in any
+MLP experiment) network width have all been checked and found wanting.
+Whatever governs the input layer's distinct behavior has not yet been
+identified among the factors this project has tried.
+
+**Falsification value.** Deliberately re-testing a prior null result
+under better-controlled conditions, rather than treating the first
+negative result as final, is exactly the kind of check the mission's
+falsification discipline calls for — and here it strengthened rather than
+overturned the original conclusion, which is itself useful information:
+the original result was not an artifact of the confound.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

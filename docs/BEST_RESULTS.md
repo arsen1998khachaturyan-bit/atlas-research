@@ -561,6 +561,19 @@ accuracy dropped from 98.4% to 73.6% across the sweep) — a cleaner version
 would scale data with `n_features` to isolate noise fraction from task
 difficulty.
 
+> **✓ Update after Experiment 15 (controlled re-run):** the confound is
+> fixed (8x more training data, held-out accuracy band tightened to
+> 91.0%–99.6%) and the result **holds, more cleanly** — gain stays at
+> 0.73–1.00 across the *entire* 0%–97% noise-fraction range at 8 seeds,
+> including the zero-noise point now properly inside the main sweep. The
+> earlier "possible hint" at zero noise (≈1.14×, 4/5 seeds, n=5) **did
+> not replicate** — the controlled, better-powered measurement gives
+> exactly 1.00 (flat) at that point. Read as a stronger, more definitive
+> version of this OBSERVATION: the noise-fraction hypothesis is cleanly
+> ruled out, not just weakly disfavored, and the input layer's behavior
+> remains unexplained after four separate experiments now (4, 6, 7, 12,
+> 15).
+
 ---
 
 ## OBSERVATION: k-means dictionary fitting is not perfectly reliable at small dictionary sizes
