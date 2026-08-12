@@ -50,6 +50,22 @@ def test_build_mlp_rejects_zero_hidden_layers():
         build_mlp(seed=1, input_dim=8, n_hidden_layers=0)
 
 
+def test_build_mlp_layernorm_does_not_change_linear_layer_count_or_shapes():
+    plain = build_mlp(seed=1, input_dim=32, use_layernorm=False)
+    normed = build_mlp(seed=1, input_dim=32, use_layernorm=True)
+
+    plain_names = linear_layer_names(plain)
+    normed_names = linear_layer_names(normed)
+    assert len(plain_names) == len(normed_names) == 3
+    # LayerNorm insertion shifts nn.Sequential's integer indices, so names
+    # differ ("0","2","4" vs "0","3","6") -- compare by position instead.
+    for plain_name, normed_name in zip(plain_names, normed_names):
+        assert tuple(get_weight(plain, plain_name).shape) == tuple(get_weight(normed, normed_name).shape)
+
+    assert any(isinstance(m, torch.nn.LayerNorm) for m in normed.modules())
+    assert not any(isinstance(m, torch.nn.LayerNorm) for m in plain.modules())
+
+
 def test_training_improves_accuracy_over_random_init():
     x_train, y_train = make_xor_dataset(2000, n_features=32, seed=2)
     x_eval, y_eval = make_xor_dataset(300, n_features=32, seed=52)

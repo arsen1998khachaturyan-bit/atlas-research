@@ -10,11 +10,24 @@ def build_mlp(
     hidden_dim: int = 64,
     output_dim: int = 2,
     n_hidden_layers: int = 2,
+    use_layernorm: bool = False,
 ) -> nn.Module:
-    """(n_hidden_layers + 1)-Linear-layer MLP: [Linear -> ReLU] * n_hidden_layers
-    -> Linear. Default n_hidden_layers=2 reproduces the original 3-Linear-layer
-    Stage B architecture. Small enough to train on CPU in seconds, per the
-    mission's Stage B guidance, even at n_hidden_layers up to ~5-6.
+    """(n_hidden_layers + 1)-Linear-layer MLP: [Linear -> ReLU (-> LayerNorm)]
+    * n_hidden_layers -> Linear. Default n_hidden_layers=2 reproduces the
+    original 3-Linear-layer Stage B architecture. Small enough to train on
+    CPU in seconds, per the mission's Stage B guidance, even at
+    n_hidden_layers up to ~5-6.
+
+    `use_layernorm=True` inserts `nn.LayerNorm(hidden_dim)` after each
+    hidden block's ReLU -- added to test whether Experiment 11's
+    Transformer finding (LayerNorm amplifies the post-training
+    behavioral-robustness gain and decouples it from the layer's own
+    effective-rank shrinkage) is a property of LayerNorm specifically, or
+    something particular to attention/Transformer architectures (see
+    docs/RESEARCH_LOG.md Experiment 13). `linear_layer_names` below only
+    picks up `nn.Linear` submodules, so LayerNorm's own parameters are
+    never treated as a compressible "layer" here -- consistent with how
+    the Transformer experiments handle LayerNorm.
 
     Caution (found empirically, see docs/RESEARCH_LOG.md Experiment 5): with
     plain PyTorch default init and no normalization, n_hidden_layers=5 on
@@ -34,6 +47,8 @@ def build_mlp(
     for _ in range(n_hidden_layers):
         layers.append(nn.Linear(in_dim, hidden_dim))
         layers.append(nn.ReLU())
+        if use_layernorm:
+            layers.append(nn.LayerNorm(hidden_dim))
         in_dim = hidden_dim
     layers.append(nn.Linear(in_dim, output_dim))
     return nn.Sequential(*layers)
