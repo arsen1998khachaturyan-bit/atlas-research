@@ -164,3 +164,39 @@ def test_ablation_transformer_trains_without_residual_or_layernorm():
     trained_acc = evaluate(model, x_eval, y_eval)["accuracy"]
 
     assert trained_acc > random_acc + 0.15
+
+
+@pytest.mark.parametrize("use_attention", [True, False])
+def test_ablation_transformer_has_same_layer_names_regardless_of_attention(use_attention):
+    model = build_ablation_transformer_classifier(
+        seed=1, vocab_size=50, n_layers=2, use_attention=use_attention
+    )
+    names = linear_layer_names(model)
+    assert names == [
+        "encoder.layers.0.self_attn.out_proj",
+        "encoder.layers.0.linear1",
+        "encoder.layers.0.linear2",
+        "encoder.layers.1.self_attn.out_proj",
+        "encoder.layers.1.linear1",
+        "encoder.layers.1.linear2",
+        "classifier",
+    ]
+    assert tuple(get_weight(model, "encoder.layers.0.self_attn.out_proj").shape) == (64, 64)
+
+
+def test_ablation_transformer_trains_without_attention():
+    examples = generate_sentiment_dataset(150, seed=9)
+    train_examples, eval_examples = examples[:110], examples[110:]
+    vocab = build_vocab([text for text, _label in train_examples])
+
+    x_train, y_train = make_sentiment_arrays(train_examples, vocab, max_len=16)
+    x_eval, y_eval = make_sentiment_arrays(eval_examples, vocab, max_len=16)
+
+    model = build_ablation_transformer_classifier(
+        seed=9, vocab_size=len(vocab), max_len=16, use_attention=False
+    )
+    random_acc = evaluate(model, x_eval, y_eval)["accuracy"]
+    train_mlp(model, x_train, y_train, epochs=100, lr=3e-3)
+    trained_acc = evaluate(model, x_eval, y_eval)["accuracy"]
+
+    assert trained_acc > random_acc + 0.15

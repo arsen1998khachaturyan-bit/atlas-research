@@ -67,14 +67,36 @@ def build_transformer_classifier(
     )
 
 
+class NoMixingAttention(nn.Module):
+    """Drop-in replacement for nn.MultiheadAttention with no cross-token
+    mixing: applies a single per-token linear projection instead of
+    attention-weighted averaging over other tokens' values. Keeps the same
+    `out_proj` attribute name (and therefore the same
+    `self_attn.out_proj` layer-discovery naming) as the real attention
+    module, so it's directly comparable under the existing analysis
+    scripts. Built to test whether attention itself (rather than
+    LayerNorm/residual/depth) is what determines the *sign* of LayerNorm's
+    effect on gain magnitude (docs/RESEARCH_LOG.md Experiment 13's open
+    question). Necessarily has fewer parameters than real attention (no
+    in_proj_weight) -- an inherent, expected consequence of removing
+    attention, not a bug to correct for."""
+
+    def __init__(self, d_model: int):
+        super().__init__()
+        self.out_proj = nn.Linear(d_model, d_model)
+
+    def forward(self, query, key, value, key_padding_mask=None, need_weights=False):
+        del key, value, key_padding_mask, need_weights
+        return self.out_proj(query), None
+
+
 class AblationEncoderBlock(nn.Module):
-    """Same shape as one nn.TransformerEncoderLayer block, but with residual
-    connections and/or LayerNorm independently toggleable -- needed because
-    nn.TransformerEncoderLayer hardcodes both. Built to test the Experiment
-    10 hypothesis that the Transformer's behavioral-robustness effect comes
-    from residual/LayerNorm-mediated error absorption rather than from any
-    single layer's own weight-matrix rank structure (docs/RESEARCH_LOG.md
-    Experiment 10)."""
+    """Same shape as one nn.TransformerEncoderLayer block, but with
+    attention, residual connections, and LayerNorm all independently
+    toggleable -- needed because nn.TransformerEncoderLayer hardcodes all
+    three. Built to test hypotheses about which architectural feature
+    drives the Transformer's behavioral-robustness effect
+    (docs/RESEARCH_LOG.md Experiments 10, 11, 13, 14)."""
 
     def __init__(
         self,
@@ -83,11 +105,15 @@ class AblationEncoderBlock(nn.Module):
         d_ff: int,
         use_residual: bool,
         use_layernorm: bool,
+        use_attention: bool = True,
     ):
         super().__init__()
         self.use_residual = use_residual
         self.use_layernorm = use_layernorm
-        self.self_attn = nn.MultiheadAttention(d_model, n_heads, batch_first=True, dropout=0.0)
+        if use_attention:
+            self.self_attn = nn.MultiheadAttention(d_model, n_heads, batch_first=True, dropout=0.0)
+        else:
+            self.self_attn = NoMixingAttention(d_model)
         self.linear1 = nn.Linear(d_model, d_ff)
         self.linear2 = nn.Linear(d_ff, d_model)
         self.activation = nn.ReLU()
@@ -126,6 +152,7 @@ class AblationTransformerClassifier(nn.Module):
         pad_idx: int = 0,
         use_residual: bool = True,
         use_layernorm: bool = True,
+        use_attention: bool = True,
     ):
         super().__init__()
         self.pad_idx = pad_idx
@@ -133,7 +160,7 @@ class AblationTransformerClassifier(nn.Module):
         self.pos_embedding = nn.Embedding(max_len, d_model)
         self.encoder = nn.ModuleDict({
             "layers": nn.ModuleList([
-                AblationEncoderBlock(d_model, n_heads, d_ff, use_residual, use_layernorm)
+                AblationEncoderBlock(d_model, n_heads, d_ff, use_residual, use_layernorm, use_attention)
                 for _ in range(n_layers)
             ])
         })
@@ -163,6 +190,7 @@ def build_ablation_transformer_classifier(
     n_classes: int = 2,
     use_residual: bool = True,
     use_layernorm: bool = True,
+    use_attention: bool = True,
 ) -> AblationTransformerClassifier:
     torch.manual_seed(seed)
     return AblationTransformerClassifier(
@@ -175,4 +203,5 @@ def build_ablation_transformer_classifier(
         n_classes=n_classes,
         use_residual=use_residual,
         use_layernorm=use_layernorm,
+        use_attention=use_attention,
     )
