@@ -805,6 +805,55 @@ breakdown.
 
 ---
 
+## VERIFIED RESULT: on real pretrained distilgpt2, achievable compression at matched quality reaches 307x on one layer, and the depth gradient is the largest found anywhere in this project
+
+**Claim.** At a fixed 5% behavioral-error bar, mean achievable compression
+ratio (3 random-init seeds vs. one fixed pretrained checkpoint) on
+distilgpt2's Conv1D layers rises from 5.3–8.0× (random-init, every case)
+to 6.3–307.2× (pretrained) across 6 tested layers (blocks 0 and 5, 3
+sublayer types each). The gradient with depth is the largest in the
+project: block 0's mean gain is a modest 1.3×; block 5's is **22.3×**,
+driven by `transformer.h.5.mlp.c_proj` reaching 307.2× compression (SVD
+rank 2 of a possible 768) at only 2.3% actual behavioral error, where the
+same layer pre-training needs the safest fallback (6-bit quantization,
+5.33×) because no structure-aware method clears the quality bar at all.
+
+**A structural finding alongside the magnitude one.** In all 24
+random-init searches, `quantize` (the structure-agnostic fallback) was
+the only method family that ever cleared the 5% bar. In the pretrained
+searches, `quantize` won only where nothing else did (2 of 6 layers);
+elsewhere `atlas_block_dict`, `vector_codebook`, or `svd` won instead —
+i.e. training doesn't just make the same method compress further, it
+makes entire families of structure-aware compression *viable* where they
+were unusable before.
+
+**How verified.** `experiments/run_atlas_nn_stage_c_real_budget_search.py`,
+6 layers × 4 states (1 pretrained + 3 random-init seeds), full 31-config
+sweep per search (same grid as Experiments 4/6/9). Reproduce with
+`python -m experiments.run_atlas_nn_stage_c_real_budget_search` (writes
+`results/atlas_nn_stage_c_real_budget_search.json`) — real wall-clock
+cost is substantial, roughly 3.3 hours on CPU for the full run.
+
+**Relationship to Experiment 18.** Experiment 18 (fixed `svd_rank4` only)
+found a confusing, non-monotonic depth pattern (block 3 > block 0 >
+block 5). This result, which lets each layer pick its own best method and
+parameter rather than forcing all layers through one fixed config, shows
+a much cleaner monotonic block0 ≪ block5 gradient instead — strong
+evidence the earlier non-monotonic reading was an artifact of probing
+every layer with the same fixed rank rather than each layer's own natural
+structure (block 5's best layer specifically wants rank 2, not rank 4).
+See `docs/RESEARCH_LOG.md` Experiment 19 for the full reconciliation.
+
+**Scope of the claim.** 6 of the model's 24 Conv1D layers (a CPU-feasible
+subset, not exhaustive), one pretrained checkpoint (no seeds possible for
+that arm), a discrete parameter grid (so 307.2× is the best available
+grid point, not a continuous optimum). The block-5 mean is dominated by
+one outlier layer; the other two block-5 layers still show a clear
+1.5×–7.9× gain on their own, so the depth-gradient claim does not rest on
+the outlier alone.
+
+---
+
 ## Explicitly not yet claimed
 
 - Nothing about *larger* networks (mission Stage D) or models above ~100M

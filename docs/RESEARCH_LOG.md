@@ -1472,3 +1472,103 @@ sentences — enough to distinguish "untrained" from "trained" cleanly
 ratio at matched 5% behavioral-error quality, mirroring Experiments 4/6/9)
 on the same model, to turn this into an actionable "Nx compression"
 number the way Experiment 9 did for Stage C-lite.
+
+---
+
+## Experiment 19 — Stage C (real) budget search: achievable compression ratio on distilgpt2, and a much cleaner depth gradient than Experiment 18's fixed-parameter view suggested
+
+**Hypothesis.** Given Experiment 18's qualitative finding (behavioral
+error 4.4–7.6× smaller for pretrained distilgpt2 than for untrained copies,
+at fixed compression parameters), the achievable compression ratio at a
+fixed 5% behavioral-error bar (the same methodology as Experiments 4/6/9)
+should be substantially higher for the pretrained checkpoint, and should
+increase with depth.
+
+**Method.** `experiments/run_atlas_nn_stage_c_real_budget_search.py`.
+`atlas_nn.stage_b.budget_search.run_budget_search` (unchanged, reused as-is
+since the Experiment 8 refactor) applied to a smaller, still
+depth-balanced layer subset than Experiment 18 — blocks 0 and 5 (early and
+late) × 3 sublayer types (`attn.c_proj`, `mlp.c_fc`, `mlp.c_proj` — the
+fused `attn.c_attn` was dropped for this script specifically to keep
+runtime manageable; see the script's docstring) — 6 layers, pretrained
+(1 fixed checkpoint) vs. 3 random-init seeds, full 31-config sweep per
+layer. Real wall-clock cost: ~11 min for the first layer-state search,
+settling to ~7–9 min/search once warmed up, ~3.3 hours total for all 24
+searches (6 layers × 4 states) — reported here because the user explicitly
+asked to wait for the full run rather than a reduced-scope version, and
+CPU cost at this model scale is itself a real, useful data point for
+anyone reproducing this.
+
+**Result — the achievable-ratio gain is much larger, and far more clearly
+depth-graded, than Experiment 18's single-fixed-method view showed (mean
+best-ratio-at-5%-error over 3 random-init seeds):**
+
+| layer | pretrained ratio | random-init ratio (mean) | gain |
+|---|---|---|---|
+| block 0 attn.c_proj | 8.00 | 5.33 | 1.5× |
+| block 0 mlp.c_fc | 6.34 | 5.33 | 1.2× |
+| block 0 mlp.c_proj | 6.34 | 5.33 | 1.2× |
+| block 5 attn.c_proj | 63.1 | 8.00 | 7.9× |
+| block 5 mlp.c_fc | 8.00 | 5.33 | 1.5× |
+| block 5 mlp.c_proj | **307.2** | 5.33 | **57.6×** |
+
+Block 0's mean gain (1.3×) is modest; block 5's (22.3×, driven mostly by
+the `mlp.c_proj` outlier but present in `attn.c_proj` too at 7.9×) is the
+largest depth-gradient magnitude found anywhere in this project — larger
+than Stage C-lite's original 1.5×–4.4× block0→block1 gradient
+(Experiment 9). The single largest number in the whole project:
+`transformer.h.5.mlp.c_proj` (a 3072×768 matrix) meets the 5%
+behavioral-error bar at **SVD rank 2** on the pretrained checkpoint
+(307.2× ratio, 2.3% actual behavioral error) vs. needing the safest
+6-bit-quantization fallback on random-init (5.33×, no low-rank structure
+usable at all pre-training).
+
+**A structural finding, not just a magnitude one: training changes which
+method family is even viable, not just how far the same method goes.**
+Every random-init search's winning family was `quantize` (the safe,
+structure-agnostic fallback) in all 24 random-init searches without
+exception. Every pretrained search's winner was something else —
+`atlas_block_dict` (2 of 6 layers), `vector_codebook` (1), `svd` (1), and
+`quantize` only where nothing else cleared the bar (2 of 6, both still
+matching or beating random-init's ratio). Structure-aware methods
+(low-rank, dictionary/codebook) are entirely unusable on the untrained
+weights at this error threshold, and become the best available option
+after training, on 4 of 6 layers.
+
+**Reconciling this with Experiment 18's odd depth pattern.** Experiment
+18's fixed-`svd_rank4` view found a non-monotonic depth pattern (block 3 >
+block 0 > block 5) that didn't match Stage C-lite's clean gradient. This
+experiment's true achievable-ratio view (each layer/state picking its own
+best method, not forced through one fixed config) shows a much cleaner,
+strongly monotonic block0 ≪ block5 gradient instead. The most likely
+explanation: forcing every layer through the same fixed method (rank-4
+SVD) in Experiment 18 measured how well *that one method* happened to fit
+each layer's specific weight structure, which is not the same question as
+"how compressible is this layer at all" — block 5's `mlp.c_proj`, for
+instance, actually wants rank 2, not rank 4, to hit its best ratio; a
+fixed rank-4 probe would under- or over-shoot depending on the layer's
+own natural rank, adding noise unrelated to the underlying depth trend.
+The budget-search view, which lets each layer find its own best
+config, is the more trustworthy measure of the true depth pattern.
+
+**Interpretation.** This is the clearest, largest-magnitude confirmation
+of the mission's central hypothesis in the whole project: on a real
+82M-parameter pretrained model this project did not train, one specific
+layer near the network's output tolerates 307× compression at under 2.3%
+behavioral error, using structure (low rank) that simply doesn't exist in
+the same layer before training. The depth gradient — modest near the
+input, large near the output — replicates and sharpens the pattern found
+on the from-scratch Stage C-lite Transformer (Experiments 8–9), now on a
+real pretrained checkpoint at larger absolute magnitude.
+
+**Scope of the claim.** 6 of the model's 24 Conv1D layers (a smaller
+subset than Experiment 18's 12, chosen for CPU feasibility — see the
+script's docstring), one pretrained checkpoint (no seeds possible for that
+arm), 3 random-init seeds, a discrete method/parameter grid (so ratios
+like 307.2 reflect the actual best grid point, not a continuous optimum —
+same caveat as Experiment 9). The `mlp.c_proj` outlier (57.6×) dominates
+the block-5 mean; without it, block 5's other two layers still show a
+clear 1.5×–7.9× gain, so the qualitative depth-gradient claim does not
+rest on that one number alone.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

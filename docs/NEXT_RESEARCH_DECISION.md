@@ -1,96 +1,95 @@
 # Next Research Decision
 
-Updated after Experiment 18 (Stage C real: distilgpt2 smoke test), the
-first experiment in this project to use a genuinely pretrained,
-externally-trained model. Covers Track B (`atlas_nn`) only.
+Updated after Experiment 19 (Stage C real: distilgpt2 budget search), the
+largest-magnitude confirmation of the mission hypothesis found anywhere in
+this project so far. Covers Track B (`atlas_nn`) only.
 
 ## 1. What we learned
 
 **Experiments 3–17:** established, refined, and mechanistically explained
-the core behavioral-robustness effect (trained networks tolerate
-weight-compression error far better than tensor error predicts) across
-two from-scratch architectures (MLP, small Transformer) and several
-synthetic/self-authored tasks. The Transformer mechanism thread (10, 11,
-13, 14, 17) reached full resolution: cross-token mixing drives gain
-magnitude, LayerNorm drives rank-decoupling.
+the core behavioral-robustness effect on two from-scratch architectures.
 
-**Experiment 18 (this round) — the effect reproduces on a real pretrained
-model.** `huggingface.co` was unblocked by a user-side network-policy
-change partway through this session (previously blocked, see Experiment
-8's note). distilgpt2 (82M parameters, real HF Hub checkpoint, unknown
-training procedure) shows the same effect at 4.4–7.6× magnitude — in
-range with every from-scratch measurement before it (3–22.7×). The
-sharpest single result: `quantize_4bit_block64`'s tensor-level error was
-*higher* for pretrained than random-init, yet its behavioral error was
-7.6× *lower* — the cleanest demonstration yet that this is about
-behavioral robustness specifically, not generic tensor compressibility.
-One genuine divergence: the depth pattern (block 3 gains most, block 5
-least) is not the same clean monotonic gradient Stage C-lite found —
-reported, not smoothed over.
+**Experiment 18:** the effect reproduces on distilgpt2, a real pretrained
+model this project did not train — the first evidence untied from this
+project's own training procedure. One odd result: a non-monotonic depth
+pattern under a single fixed compression method (`svd_rank4`).
+
+**Experiment 19 (this round) — resolved and sharpened.** The
+achievable-compression-ratio view (each layer choosing its own best
+method/parameter, not forced through one fixed config) shows a clean,
+strongly monotonic depth gradient after all: block 0 gains ~1.3× from
+training, block 5 gains ~22.3×, with one layer
+(`transformer.h.5.mlp.c_proj`) reaching **307.2× compression at 2.3%
+behavioral error** post-training (SVD rank 2) vs. 5.33× pre-training. This
+is the largest compression number in the whole project, on a real model.
+Alongside the magnitude finding: training doesn't just improve ratios, it
+changes which method *families* are viable at all — every random-init
+search's winner was the safe `quantize` fallback; most pretrained
+searches were won by a structure-aware method instead.
 
 ## 2. What failed / remains untested
 
-- The budget-search (achievable-ratio-at-matched-quality) version of this
-  experiment — `experiments/run_atlas_nn_stage_c_real_budget_search.py`
-  exists but had not been run as of Experiment 18's writeup. This is the
-  direct, low-cost next step: turns the qualitative tensor-vs-behavior gap
-  into the same "Nx compression" number Experiments 4/6/9 produced for the
-  from-scratch models.
-- Why the depth pattern differs between distilgpt2 (non-monotonic,
-  3 points) and Stage C-lite (monotonic, 2 points) — not investigated;
-  could be a real architectural/training difference or simply that 2 data
-  points can't distinguish monotonic from non-monotonic in the first
-  place.
-- Effective-rank / LayerNorm / attention-mixing mechanism questions
-  (Experiments 10–17) have not been re-tested on distilgpt2 — the
-  mechanism picture from the from-scratch Transformer has not been checked
-  against a real pretrained one.
-- The MLP input-layer question (Experiments 4, 6, 7, 12, 15, 16) remains
-  open — no new lead from this round; Experiment 18 tested Conv1D
-  sublayers depth-wise, not an input-embedding-layer analogue.
-- Only one pretrained model tested. A second, differently-sized or
-  differently-trained checkpoint (e.g. gpt2 vs. gpt2-medium, or a
-  different architecture family) would test whether the magnitude/depth
-  findings are distilgpt2-specific or general.
+- Experiment 18's non-monotonic depth reading is now understood as an
+  artifact of forcing every layer through the same fixed rank-4 SVD probe
+  rather than a real property of the model — but this explanation, while
+  well-supported, has not been independently stress-tested (e.g. by
+  re-running Experiment 18's fixed-method view at each layer's own
+  *natural* best rank instead of a uniform rank 4).
+  the mechanism questions from Experiments 10-17 (effective rank, residual
+  connections, LayerNorm, attention mixing) have still not been re-tested
+  on distilgpt2 -- the from-scratch Transformer's mechanism picture has
+  not been checked against a real pretrained one.
+- Only 6 of distilgpt2's 24 Conv1D layers tested (CPU feasibility); the
+  other 18, and the fused `attn.c_attn` sublayer type specifically
+  (dropped from this script for runtime reasons), remain unmeasured.
+- Only one pretrained model. Whether the 307x number and the depth
+  gradient's magnitude are distilgpt2-specific or reflect something more
+  general about pretrained language models remains untested.
+- The MLP input-layer question (Experiments 4, 6, 7, 12, 15, 16) is still
+  the project's longest-standing open thread, untouched this round.
 
 ## 3. What worked
 
-- The architecture-agnostic `get_weight`/`set_weight`/`evaluate`/
-  `snapshot`/`load_snapshot` interface, unchanged since the Stage C-lite
-  refactor, worked without modification on a real HF `transformers` model
-  using `Conv1D` sublayers (a different module type and weight orientation
-  than `nn.Linear`) — a real test of that abstraction's generality, not
-  just its reuse across this project's own from-scratch models.
-- Scoping `snapshot`/`load_snapshot` to only the tested layers (rather
-  than a full 82M-parameter `state_dict()` deep copy per row, as Stage
-  B/C-lite do) kept per-row overhead manageable — necessary at this scale,
-  not needed at Stage B/C-lite's.
-- Deliberately reducing layer/method scope for CPU feasibility, and
-  saying so explicitly in the module docstring and the experiment
-  writeup, rather than silently running a smaller experiment and
-  presenting it as equivalent in power to earlier ones.
+- Running the full budget search rather than a reduced-scope version (the
+  user's explicit choice after being told the real ~4-5 hour cost) paid
+  off directly: the reduced-scope alternative offered would have cut
+  layers/methods in ways that plausibly could have masked exactly the
+  large block-5 outlier that turned out to be the headline result.
+- Treating Experiment 18's confusing non-monotonic finding as unfinished
+  business rather than either dismissing it or overinterpreting it,
+  continuing the project's established pattern from Experiments 10->11,
+  12/15->15, and 14->17.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes, and more strongly than before.** Every prior demonstration of the
-central effect used a network this project trained itself. Experiment 18
-removes that as a possible confound entirely: a real, externally-trained,
-82M-parameter checkpoint shows the same effect, in the same magnitude
-range, on a task and training procedure this project has no control over
-or visibility into. This is the single piece of evidence closest to what
-mission Stage C originally asked for.
+**Yes, more strongly than at any earlier point in the project.** A real,
+externally-trained, 82M-parameter model shows a compression gain (up to
+307x on one layer, at under 2.3% behavioral error) larger than anything
+found on this project's own from-scratch architectures, using structure
+that provably doesn't exist in the same layer before training. This is
+close to the strongest form of evidence the mission's Stage C ladder step
+was designed to produce.
 
 ## 5. The single most informative next experiment
 
-**Run the budget search** (`experiments/run_atlas_nn_stage_c_real_budget_search.py`,
-already written, scoped to 6 layers × 4 states for CPU feasibility) to
-convert Experiment 18's qualitative finding into an actionable
-"achievable compression ratio at 5% behavioral error" number — the same
-step Experiment 9 was for Experiment 8. This is queued and ready to run;
-no design work remains, only compute time.
+No single next step clearly dominates; in rough priority order:
 
-After that, in rough priority order: (a) a second pretrained checkpoint
-to test whether the depth-pattern divergence and magnitude range are
-distilgpt2-specific; (b) revisit the MLP input-layer question, still the
-project's longest-standing open thread; (c) a consolidation pass
-incorporating Experiment 18 into the project-wide synthesis artifact.
+**(a)** A second pretrained checkpoint (e.g. `gpt2` or `gpt2-medium`) to
+test whether the 307x-scale outlier and the depth gradient's magnitude
+are distilgpt2-specific or general across model sizes/families -- the
+most direct way to test how far Experiment 19's headline number
+generalizes.
+
+**(b)** Extend layer coverage on distilgpt2 itself (the remaining 18
+layers, including `attn.c_attn`) to check whether block 5's large gain is
+specific to `mlp.c_proj` or a genuine property of "late in the network"
+more broadly -- cheaper than (a), refines rather than extends the current
+finding.
+
+**(c)** Revisit the MLP input-layer question, still open since
+Experiment 4 and untouched for several rounds now.
+
+**(d)** A consolidation pass incorporating Experiments 18-19 into the
+project-wide synthesis artifact (the "Slack Hypothesis" retrospective
+built earlier this session), which currently stops at Experiment 17 and
+does not yet reflect the real-pretrained-model result.

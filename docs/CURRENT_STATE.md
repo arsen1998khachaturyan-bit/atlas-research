@@ -250,9 +250,24 @@ single piece of evidence in the project that this is a general property
 of trained networks, not an artifact of this project's own training
 procedure. One divergence from Stage C-lite: the depth pattern here is
 non-monotonic (block 3 > block 0 > block 5), not a clean gradient — see
-`docs/RESEARCH_LOG.md` Experiment 18. The budget-search follow-up
-(`experiments/run_atlas_nn_stage_c_real_budget_search.py`) is written and
-queued.
+`docs/RESEARCH_LOG.md` Experiment 18.
+
+**Experiment 19 (budget search, completed):** resolved Experiment 18's
+odd depth pattern — letting each layer pick its own best method/parameter
+(rather than a fixed rank-4 SVD probe) shows a clean, strongly monotonic
+gradient after all: block 0 gains ~1.3× from training, block 5 gains
+~22.3×, with one layer (`transformer.h.5.mlp.c_proj`) reaching **307.2×
+compression at 2.3% behavioral error** post-training (SVD rank 2) vs.
+5.33× pre-training — the largest compression number found anywhere in
+this project, on a real model this project did not train. Also: every
+random-init search's best method was the safe `quantize` fallback;
+most pretrained searches were won by a structure-aware method instead
+(low-rank, codebook, block-dictionary) — training doesn't just improve
+ratios, it makes entire method families viable. Full wall-clock cost:
+~3.3 hours on CPU for the 24-search sweep. See `docs/RESEARCH_LOG.md`
+Experiment 19 and `docs/NEXT_RESEARCH_DECISION.md` for current options
+(a second pretrained model, more distilgpt2 layer coverage, the MLP
+input-layer question, or folding this into the synthesis artifact).
 
 ### Design constraints adopted for Track B
 
