@@ -90,6 +90,35 @@ class NoMixingAttention(nn.Module):
         return self.out_proj(query), None
 
 
+class MatchedParamNoMixingAttention(nn.Module):
+    """Disentangles Experiment 14's `NoMixingAttention` ablation, which
+    simultaneously removed cross-token mixing AND ~3/4 of attention's
+    parameters (no in_proj_weight). This variant keeps the same total
+    parameter count as real `nn.MultiheadAttention` (in_proj_weight/bias
+    stored as raw Parameters, exactly like `nn.MultiheadAttention` itself
+    does -- not as an `nn.Linear` submodule, so `linear_layer_names`
+    still only picks up `out_proj` here, keeping the tracked-layer set
+    identical across all attention variants) but skips the actual
+    softmax(QK^T)V cross-token mixing step: the value projection is
+    passed straight to `out_proj`, per token, with no mixing across the
+    sequence. Isolates "no mixing" from "fewer parameters" (docs/
+    RESEARCH_LOG.md Experiment 17)."""
+
+    def __init__(self, d_model: int):
+        super().__init__()
+        self.in_proj_weight = nn.Parameter(torch.empty(3 * d_model, d_model))
+        self.in_proj_bias = nn.Parameter(torch.zeros(3 * d_model))
+        nn.init.xavier_uniform_(self.in_proj_weight)
+        self.out_proj = nn.Linear(d_model, d_model)
+
+    def forward(self, query, key, value, key_padding_mask=None, need_weights=False):
+        del key, value, key_padding_mask, need_weights
+        d_model = query.shape[-1]
+        qkv = nn.functional.linear(query, self.in_proj_weight, self.in_proj_bias)
+        v = qkv[..., 2 * d_model:]
+        return self.out_proj(v), None
+
+
 class AblationEncoderBlock(nn.Module):
     """Same shape as one nn.TransformerEncoderLayer block, but with
     attention, residual connections, and LayerNorm all independently

@@ -1,9 +1,8 @@
 # Next Research Decision
 
-Updated after Experiment 15 (controlled re-run of the input-layer noise
-sweep), which closed Experiment 12's remaining loose end and left the
-input-layer question more firmly unexplained than before. Covers Track B
-(`atlas_nn`) only.
+Updated after Experiment 16 (raw-vs-projected input test), which ruled
+out a third specific hypothesis for the MLP input-layer question. Covers
+Track B (`atlas_nn`) only.
 
 ## 1. What we learned
 
@@ -11,95 +10,94 @@ input-layer question more firmly unexplained than before. Covers Track B
 weight-compression error far better than tensor error predicts, scaling
 with depth) is well-established across two architectures, three tasks.
 
-**Experiments 10–14:** four architectural factors individually tested —
-residual connections ruled out; effective rank partially explains the
-MLP; LayerNorm drives rank-decoupling (generalizes across architectures)
-and a secondary magnitude effect; attention is the dominant magnitude
-driver and partly explains the depth gradient. The Transformer mechanism-
-hunting thread reached a well-resolved natural stopping point.
+**Experiments 10–14:** four architectural factors individually tested on
+the Transformer mechanism — residual connections ruled out; effective
+rank partially explains the MLP; LayerNorm drives rank-decoupling
+(generalizes across architectures) and a secondary magnitude effect;
+attention is the dominant magnitude driver. That thread reached a
+well-resolved natural stopping point.
 
-**Experiment 12:** the MLP input layer's flat-to-negative post-training
-compressibility does not track task-irrelevant input noise fraction — but
-flagged an unresolved data-size confound.
+**Experiments 12, 15:** the MLP input layer's flat-to-negative
+post-training compressibility does not track task-irrelevant input noise
+fraction — confirmed cleanly at good power after fixing a data-size
+confound.
 
-**Experiment 15 (this round) — the confound fixed, the null result
-strengthened:** with training data scaled up to equalize task difficulty
-across the noise-fraction sweep (held-out accuracy tightened from a
-73.6%–98.4% band to 91.0%–99.6%), the result holds and is cleaner: gain
-stays at 0.73–1.00 across the entire 0%–97% noise-fraction range, 8
-seeds. The one loose end from Experiment 12 — a weak positive hint at
-zero noise — **disappeared** under better power and control (exactly
-1.00, flat). Noise fraction is now firmly ruled out, not just weakly
-disfavored.
+**Experiment 16 (this round) — a third hypothesis ruled out:** does the
+input layer's behavior come from literally seeing *raw, untransformed*
+task input, unlike every other layer (which receives an already-processed
+upstream representation)? Tested by prepending a frozen, never-trained
+orthogonal projection before the trainable stack, so the first trainable
+layer sees a fixed transform of the input instead. Result: no positive
+gain (mean 0.94 raw vs. 0.80 projected) — if anything slightly worse
+projected, the opposite of the hypothesis's prediction. Ruled out.
 
-**Where the input-layer question stands after five experiments (4, 6, 7,
-12, 15):** two candidate explanations tested and ruled out (effective
-rank only weakly/inconsistently related; noise fraction cleanly
-unrelated). The behavior itself — no gain, sometimes a penalty, uniquely
-among all layer types in every architecture tested — remains real,
-reproducible, and unexplained.
+**Where the input-layer question stands after six experiments (4, 6, 7,
+12, 15, 16):** three specific hypotheses tested and ruled out (effective
+rank, noise fraction, raw-vs-processed input). The behavior itself — no
+gain, sometimes a penalty, unique among all layer types in every
+architecture tested — remains real, reproducible, and unexplained by
+every mechanism tried so far.
 
 ## 2. What failed / remains untested
 
-- Noise-fraction hypothesis — now cleanly ruled out at good power, not
-  just suggestively disfavored.
-- No new hypothesis for the input layer has been generated this round —
-  Experiment 15 closed a loose end rather than opening a new lead.
-- Whether the input layer's behavior relates to something identified in
-  the Transformer mechanism work (e.g., does an input-facing layer in the
-  Transformer show the same pattern? Not yet checked — the Stage C-lite
-  experiments never singled out an "input-layer" analog since the
-  embedding layer isn't a compressible `nn.Linear` in the same sense).
+- Effective rank, noise fraction, and raw-vs-processed input — all three
+  now ruled out as explanations for the input layer's behavior.
+- Whether an input-facing layer in the Transformer shows an analogous
+  pattern — not yet checked (option (a) from the prior round, still
+  open).
+- The attention-ablation parameter-count confound from Experiment 14
+  (`NoMixingAttention` removes both cross-token mixing and ~3/4 of
+  attention's parameters simultaneously) — a `MatchedParamNoMixingAttention`
+  variant has been implemented (same parameter count as real attention,
+  skips only the softmax mixing step) but not yet run at the time of this
+  writing.
 - A genuine pretrained-model test — still blocked by network policy.
 
 ## 3. What worked
 
-- Treating Experiment 12's own flagged confound as unfinished business
-  and returning to fix it, rather than letting a caveat sit indefinitely,
-  produced a cleaner, more trustworthy null result and eliminated a loose
-  thread (the zero-noise hint) that could have misled future work if left
-  unchecked.
-- Verifying the fix empirically (checking the accuracy band actually
-  tightened) before committing to the full 8-seed run avoided wasting
-  compute on a re-run that might not have actually fixed the confound.
+- Testing the input-layer question with a third, structurally different
+  hypothesis (preprocessing/rawness, distinct from both rank and noise
+  fraction) rather than re-testing variations on the same idea kept the
+  search genuinely exploratory rather than repetitive.
+- Reusing the exact same budget-search methodology (Experiment 4/6/12/15)
+  for a third time made this result directly comparable to the prior two
+  null results without any new analysis machinery.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes, unaffected by this round — the input-layer question is a detail
-of the mechanism, not the core phenomenon.** The central claim (trained
-networks tolerate compression far better than tensor error predicts,
-concentrated in specific layers, deepening with representational depth)
-remains strongly evidenced regardless of whether the input layer's
-distinct non-participation is ever explained. This round's contribution
-is negative-but-valuable: it removes one more wrong explanation from
-consideration and confirms the earlier null result wasn't a measurement
-artifact.
+**Yes, unaffected — the input-layer question remains a mechanism detail,
+not a threat to the core phenomenon.** Three consecutive, well-powered
+null results on the input layer is itself informative: whatever explains
+its behavior is not any of the "obvious" candidates (rank, noise ratio,
+preprocessing), suggesting either a more subtle information-theoretic
+property, an optimization-dynamics explanation (e.g. something about how
+gradients specifically reach the first layer), or something not yet
+hypothesized. This doesn't weaken the core phenomenon's evidence at all —
+it narrows an open side-question.
 
 ## 5. The single most informative next experiment
 
-No strong, specific lead remains for the input-layer question after two
-hypotheses (rank, noise fraction) have been tried and both failed. Three
-reasonable paths, in rough order of promise:
+Three specific hypotheses for the input layer have now failed. Rather
+than continue guessing hypotheses, the two most promising open threads
+are:
 
-**(a)** Check whether an input-facing layer in the *Transformer*
-architecture shows the same pattern — would test whether "input layers
-are different" is a general phenomenon (worth a real hypothesis-generation
-effort) or MLP-specific (in which case the input-layer question may be
-lower priority than it's been treated).
+**(a)** Finish and run the `MatchedParamNoMixingAttention` check
+(Experiment 17, implemented, not yet executed) — disentangles whether
+Experiment 14's attention-magnitude finding was really about cross-token
+mixing or just about attention's extra parameters. This is close to
+completion and should be finished before opening new threads.
 
-**(b)** Try a structural/informational hypothesis instead of a capacity
-one: does the input layer's behavior relate to it being the only layer
-whose incoming activations are never normalized or reshaped by a prior
-layer (raw features in, vs. every other layer receiving already-processed
-activations)? Testable cheaply by adding an input-normalization step
-(e.g. z-scoring or a fixed random projection) before the first trainable
-layer and checking whether *that* first trainable layer (now not
-literally seeing raw input) behaves differently.
+**(b)** Check whether an input-facing layer in the Transformer shows a
+similar pattern to the MLP's input layer — would clarify whether "input
+layers are different" is architecture-general (worth continued
+investment) or MLP-specific (in which case further guessing at MLP-only
+hypotheses has diminishing value).
 
-**(c)** Deprioritize this question for now given two clean negative
-results and no strong remaining lead; consider it a standing open
-question in `docs/CURRENT_STATE.md` rather than continuing to spend
-cycles without a promising hypothesis to test.
+**(c)** Given three clean negatives on the input-layer question and no
+remaining strong hypothesis, it's reasonable to deprioritize further
+*hypothesis-guessing* there specifically (distinct from (b), which tests
+generality rather than guessing a new mechanism) and record it as a
+standing open question rather than continuing an unguided search.
 
 **Standing recommendation, unchanged:** a real pretrained checkpoint
 remains the single highest-value possible addition to this research line

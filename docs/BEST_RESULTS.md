@@ -576,6 +576,30 @@ difficulty.
 
 ---
 
+## OBSERVATION: the MLP input layer's compressibility is unaffected by whether it sees raw or pre-transformed input (a third hypothesis ruled out)
+
+**What was tested.** `experiments/run_atlas_nn_stage_b_input_layer_raw_vs_projected.py`:
+a frozen (never trained), orthogonally-initialized linear projection
+prepended before the trainable stack, so the first trainable layer sees a
+fixed transform of the raw input instead of raw input directly. 2-XOR
+task, 8 seeds, `raw_input` vs. `projected_input`.
+
+**Result.** No positive gain in either condition (mean gain 0.94 raw vs.
+0.80 projected) — if anything slightly worse once the input is
+projected, the opposite of the hypothesis's prediction. Rules out
+"seeing raw, untransformed input" as the explanation for the input
+layer's distinct behavior.
+
+**Where this leaves the input-layer question.** Three specific hypotheses
+now tested and ruled out: effective rank (Experiment 7, weak/inconsistent),
+noise fraction (Experiments 12, 15, cleanly ruled out at good power), and
+raw-vs-processed input (this experiment). The behavior — no post-training
+compressibility gain, sometimes a penalty, unique among all layer types in
+every architecture tested — remains real, reproducible across many
+experiments, and still unexplained.
+
+---
+
 ## OBSERVATION: k-means dictionary fitting is not perfectly reliable at small dictionary sizes
 
 On `block_repeated` with `dict_size=8` (only 4 true unique blocks exist),

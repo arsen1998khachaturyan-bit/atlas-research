@@ -1219,4 +1219,51 @@ falsification discipline calls for — and here it strengthened rather than
 overturned the original conclusion, which is itself useful information:
 the original result was not an artifact of the confound.
 
+**Next experiment.** With rank (Exp 7) and noise fraction (Exp 12, 15)
+both ruled out, test a third candidate: is the input layer's behavior
+about literally seeing *raw, untransformed* task input, unlike every
+other layer, which receives an already-processed upstream representation?
+
+---
+
+## Experiment 16 — Raw vs. projected input: also ruled out
+
+**Hypothesis.** `atlas_nn.stage_b.model.build_mlp(use_frozen_input_
+projection=True)` prepends a frozen, orthogonally-initialized, never-
+trained linear projection before the trainable stack, so the first
+*trainable* layer sees a fixed transform of the raw input instead of the
+raw input directly — same task, same layer shape, only "rawness" changes.
+If the input layer's flat-to-negative compressibility is about literally
+seeing raw features, the first trainable layer should behave more
+hidden-layer-like (a real positive gain) once it's one step removed from
+raw input.
+
+**Method.** `experiments/run_atlas_nn_stage_b_input_layer_raw_vs_projected.py`.
+2-XOR task, 8 seeds, `raw_input` (baseline) vs. `projected_input`
+(frozen orthogonal projection in front). Same Experiment 4/6/12/15
+budget-search methodology, measuring the first *trainable* layer's gain
+in both conditions.
+
+**Result — ruled out, cleanly, in the wrong direction if anything:**
+
+| condition | mean random-init ratio | mean trained ratio | gain |
+|---|---|---|---|
+| raw_input (baseline) | 5.63 | 5.31 | 0.94 |
+| projected_input | 6.62 | 5.31 | **0.80** |
+
+No positive gain in either condition — both flat-to-negative, matching
+every prior measurement of the input layer. If anything, the projected
+condition is slightly *worse* (0.80 vs 0.94), the opposite of what the
+raw-input hypothesis predicted. The frozen projection itself, being
+untrained by construction, trivially shows no change between states
+(excluded from analysis, as planned).
+
+**Interpretation.** Three specific hypotheses now tested and ruled out
+for the input layer's distinct behavior: effective rank (Experiment 7,
+weak/inconsistent), noise fraction (Experiments 12, 15, cleanly ruled
+out), and raw-vs-processed input (this experiment, cleanly ruled out).
+The behavior itself remains real and reproducible — it just isn't
+explained by any capacity-, information-, or preprocessing-based story
+tried so far.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
