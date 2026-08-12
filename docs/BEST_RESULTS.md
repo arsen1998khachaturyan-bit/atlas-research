@@ -753,11 +753,66 @@ size, not a precise measurement of it.
 
 ---
 
+## VERIFIED RESULT: the behavioral-robustness effect reproduces on a real pretrained model (distilgpt2), not just networks trained inside this project
+
+**Claim.** On distilgpt2 (82M parameters, a genuinely pretrained
+checkpoint from the HF Hub — this project did not train it and has no
+visibility into how it was trained), the same core effect found on every
+from-scratch architecture tested so far reproduces: at fixed compression
+parameters, behavioral error (`relative_logit_error` after weight
+substitution) is 4.4–7.6× smaller for the real pretrained checkpoint than
+for freshly-initialized, completely untrained copies of the same
+architecture, across every compression method with room to show a
+difference (SVD, vector-codebook, magnitude pruning, block-dictionary,
+4-bit quantization). The sharpest single case: `quantize_4bit_block64`'s
+*tensor*-level error is actually **higher** for the pretrained checkpoint
+(0.101 vs. 0.090 random-init) yet its *behavioral* error is **7.6× lower**
+(0.006 vs. 0.048) — direct evidence the effect is about behavioral
+robustness specifically, not generic tensor-level compressibility.
+
+**How verified.** `experiments/run_atlas_nn_stage_c_real_smoke.py`, a
+fixed depth-balanced subset of 12 Conv1D layers (blocks 0/3/5 × 4 sublayer
+types), 7 compression methods, real pretrained checkpoint (one fixed
+instance) vs. 3 independently seeded, fully untrained copies of the same
+architecture (no training performed on this arm at all — unlike every
+earlier experiment, there is no training-success confound to check here).
+Reproduce with `python -m experiments.run_atlas_nn_stage_c_real_smoke`
+(writes `results/atlas_nn_stage_c_real_smoke.json`) — requires
+`huggingface.co` to be reachable (see `pyproject.toml`'s `stage_c_real`
+optional dependency group).
+
+**Why this is stronger evidence than Experiments 3/8 alone.** Every prior
+version of this finding used a network trained inside this repository, on
+a synthetic or self-authored task, with this project's own training
+procedure — leaving open the possibility the effect was somehow specific
+to how this project trains networks. distilgpt2 removes that possibility
+entirely: unknown training data, unknown procedure, unknown duration, and
+the effect still appears, at a magnitude in the same range as every
+from-scratch measurement (3–22.7×) found before it.
+
+**Scope of the claim.** One pretrained checkpoint (a single fixed model —
+no seeds apply to that arm), 82M parameters (still small by current
+standards), a curated 12-of-many-more layer subset (a full sweep is not
+practical on CPU at this scale), fixed compression parameters rather than
+a behavior-budgeted ratio search (that follow-up exists as
+`experiments/run_atlas_nn_stage_c_real_budget_search.py`; see
+`docs/RESEARCH_LOG.md` Experiment 18 for whether it had been run yet as of
+this writing). The depth pattern found here (block 3 gains most, block 5
+least) is **not** the same clean monotonic-with-depth gradient Stage
+C-lite found (Experiments 8–9) — reported as a genuine divergence, not
+smoothed into the earlier finding; see Experiment 18 for the full
+breakdown.
+
+---
+
 ## Explicitly not yet claimed
 
-- Nothing about real datasets, larger networks, or pretrained transformers
-  (Stage C/D of the mission ladder) — Stage B used one small synthetic-task
-  MLP only.
+- Nothing about *larger* networks (mission Stage D) or models above ~100M
+  parameters — Experiment 18 covers one 82M-parameter pretrained model
+  (distilgpt2), on a curated layer subset, at fixed compression parameters
+  only. A real dataset and a real pretrained transformer are no longer
+  unclaimed (see the VERIFIED RESULT above), but "larger networks" still
+  is.
 - Nothing about direct inference without materializing full weight tensors
   (mission section 8) — not attempted yet.
 - Nothing about cross-layer/cross-model shared dictionaries (mission section

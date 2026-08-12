@@ -1331,3 +1331,144 @@ precisely because the alternative was a reasonable prior expectation, not
 a straw man.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 18 — Stage C (real): does the behavioral-robustness effect appear on a literal pretrained model?
+
+**Context.** `huggingface.co` was blocked by this session's network policy
+through Experiments 8–17 (confirmed via the egress proxy's status
+endpoint), which is why Stage C-lite substituted a from-scratch Transformer
+on a real text task instead of mission Stage C's literal "manageable open
+pretrained model." Partway through this session the user changed the
+environment's network policy; `huggingface.co` and the HF Hub API now
+return `200` and serve real data (verified directly, not assumed from a
+changed setting). This is the first experiment in the project to use an
+actually-trained, externally-produced model rather than a network trained
+from scratch inside this repository.
+
+**Hypothesis.** If the behavioral-robustness effect (Experiments 3, 8: a
+trained network's output is far less sensitive to weight-compression error
+than tensor error predicts, compared to the same architecture at random
+init) reflects something general about trained networks rather than an
+artifact of this project's own training runs, it should reproduce on a
+real pretrained checkpoint trained by someone else, on real data, with a
+real training procedure this project has no visibility into.
+
+**Method.** `atlas_nn/stage_c_real/`: distilgpt2 (82M parameters, 6
+GPT-2 Transformer blocks, `transformers.AutoModelForCausalLM`). Given CPU
+budget, a fixed depth-balanced subset of 12 Linear-equivalent (`Conv1D`)
+layers is tested — blocks 0, 3, and 5 (early/mid/late of 6), all 4 sublayer
+types (`attn.c_attn`, `attn.c_proj`, `mlp.c_fc`, `mlp.c_proj`) — rather
+than the full model (a full sweep is not practical on CPU at this scale;
+see the module docstring). Two arms: the real pretrained checkpoint (one
+fixed instance — there is only one distilgpt2, so no seeds apply to this
+arm) vs. three freshly-initialized, **completely untrained** copies of the
+same architecture (seeds 11, 22, 33; no training performed on this arm at
+all, unlike Stage B/C-lite's random-init-then-train design — so there is
+no training-success confound to check here, unlike every earlier
+experiment in this project). Behavioral eval: teacher-forced next-token
+accuracy and full-logit relative L2 error on a fixed batch of 8
+self-authored English sentences (24 tokens each). `experiments/
+run_atlas_nn_stage_c_real_smoke.py`, 7 fixed-parameter methods per layer
+(mirroring Experiments 3/8's smoke-test pattern) — 336 total rows.
+`results/atlas_nn_stage_c_real_smoke.json`.
+
+**Result 1 — next-token accuracy confirms the two arms are genuinely
+different regimes.** Pretrained: 15.8% exact-match next-token accuracy on
+the eval batch (real, non-trivial language modeling — GPT-2's own
+tokenizer/vocab makes exact top-1 next-token match a hard task even for a
+well-trained small model on generic sentences). Random-init: **exactly
+0.0%** in all 3 seeds — expected under pure chance given vocab size 50,257
+and ~184 scored positions per seed (P(0 correct) ≈ 99.6% under the null),
+not a bug, but a clean confirmation the untrained arm is genuinely
+untrained.
+
+**Result 2 — the core effect reproduces cleanly across every method with
+non-trivial baseline error (mean over all 12 layers, all seeds pooled for
+random-init):**
+
+| method | pretrained rel_logit | random-init rel_logit | gain |
+|---|---|---|---|
+| svd_rank4 | 0.116 | 0.564 | **4.9×** |
+| vector_codebook_k16 | 0.098 | 0.428 | **4.4×** |
+| prune_50pct | 0.023 | 0.144 | **6.2×** |
+| atlas_block_dict16_res4bit | 0.007 | 0.047 | **6.8×** |
+| quantize_4bit_block64 | 0.006 | 0.048 | **7.6×** |
+| quantize_8bit_pertensor | 0.005 | 0.006 | 1.2× (both already near-lossless) |
+| zlib_lossless | 0.000 | 0.000 | — (exact, no compression either way) |
+
+Every lossy method with room to show a difference (i.e. not already
+near-zero error in both states) shows a substantial gain, in the same
+4–8× range this project's synthetic/from-scratch experiments have
+consistently found. `quantize_8bit`'s near-1× "gain" is exactly what the
+existing framework predicts: when tensor error is already tiny in both
+states, there's no behavioral degradation left to differentially recover
+from.
+
+**A sharper version of the core finding, from `quantize_4bit_block64`
+specifically.** Its *tensor*-level error is actually slightly **higher**
+for the pretrained checkpoint than for random-init (0.101 vs. 0.090) — the
+opposite direction from the usual pattern — yet its *behavioral* error is
+7.6× **lower** for pretrained (0.006 vs. 0.048). This is the cleanest
+demonstration in the whole project that the effect is specifically about
+behavioral robustness, not about the trained tensor being "easier to
+compress" in a generic tensor-error sense — the same or even larger tensor
+perturbation does far less behavioral damage once the network is trained,
+independent of whether tensor-level compressibility itself improved.
+
+**Result 3 — the depth pattern is not the same clean monotonic gradient
+Stage C-lite found, but a genuine result, not noise (svd_rank4, mean
+rel_logit_error by block):**
+
+| block | pretrained | random-init | gain |
+|---|---|---|---|
+| 0 (early) | 0.189 | 0.991 | 5.2× |
+| 3 (mid) | 0.050 | 0.394 | **7.9×** |
+| 5 (late) | 0.108 | 0.307 | **2.8×** |
+
+Block 3 (middle) shows the largest gain, block 5 (last) the smallest —
+not the "gain increases monotonically with depth" pattern Stage C-lite's
+2-block Transformer showed (Experiments 8–9). This does not contradict
+Stage C-lite's finding (that Transformer was only 2 blocks deep, so
+"monotonic across 2 points" is a much weaker claim than a genuine
+non-monotonic pattern across 3 points here); it does mean "gain
+increases with depth" should not be treated as a general law without
+more architectures/depths tested. A real, reportable divergence, not
+smoothed over.
+
+**Result 4 — extremely tight reproducibility across random-init seeds**
+(svd_rank4, pooled over all 12 layers): seed 11 → gain 4.94×, seed 22 →
+4.88×, seed 33 → 4.80× — a spread of under 3% across seeds. Tighter than
+any earlier experiment's seed-to-seed spread in this project, which makes
+sense: unlike Stage B/C-lite's random-init arm (a snapshot *before*
+training, subject to that specific training run's optimization dynamics
+elsewhere in the same experiment), this random-init arm involves no
+training step of any kind — pure weight initialization variance only.
+
+**Interpretation.** This is the strongest single piece of evidence in the
+project for the mission's central hypothesis: the behavioral-robustness
+effect (Experiments 3, 8) was previously demonstrated only on networks
+trained inside this repository, on synthetic or self-authored tasks, with
+this project's own training procedure. Here it reproduces, at similar or
+larger magnitude (4.4–7.6× vs. the 3–11× range from Experiments 3/8), on
+a model this project did not train, whose training data, procedure, and
+duration are unknown here — exactly the kind of external validation the
+mission's falsification discipline calls for. The one genuine surprise
+(non-monotonic depth pattern) is reported as found, narrowing rather than
+overturning the earlier depth-gradient finding.
+
+**Scope of the claim.** One pretrained checkpoint (no seeds possible for
+that arm — it is a single fixed model), one small model (82M parameters,
+still far below "large" by current standards), a curated 12-layer subset
+rather than the full model, fixed compression parameters rather than a
+budget-search ratio (that follow-up — mirroring Experiments 4/6/9 — is
+`experiments/run_atlas_nn_stage_c_real_budget_search.py`, not yet run at
+the time of this writeup). The eval set is 8 short self-authored
+sentences — enough to distinguish "untrained" from "trained" cleanly
+(Result 1) but not a rigorous language-modeling benchmark.
+
+**Next experiment.** Run the budget-search version (achievable compression
+ratio at matched 5% behavioral-error quality, mirroring Experiments 4/6/9)
+on the same model, to turn this into an actionable "Nx compression"
+number the way Experiment 9 did for Stage C-lite.

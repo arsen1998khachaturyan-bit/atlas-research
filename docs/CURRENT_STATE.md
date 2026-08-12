@@ -236,6 +236,24 @@ reproducible, and unexplained. See `docs/RESEARCH_LOG.md` for the full
 options (Transformer input-layer analog check, a real pretrained-model
 test if network policy allows, or a consolidation pass).
 
+**Stage C (real), Experiment 18:** partway through this session the user
+changed the environment's network policy; `huggingface.co` (previously
+blocked, see the note above) is now reachable, confirmed directly (`200`,
+real API data). `atlas_nn/stage_c_real/` targets distilgpt2 (82M
+parameters, a genuinely pretrained HF Hub checkpoint this project did not
+train) using the same architecture-agnostic interface as Stage B/C-lite.
+The core behavioral-robustness effect reproduces cleanly (4.4–7.6× gain
+across every method with room to show a difference), including one
+sharper-than-before demonstration (`quantize_4bit_block64`: tensor error
+*higher* for pretrained, behavioral error 7.6× *lower*) — the strongest
+single piece of evidence in the project that this is a general property
+of trained networks, not an artifact of this project's own training
+procedure. One divergence from Stage C-lite: the depth pattern here is
+non-monotonic (block 3 > block 0 > block 5), not a clean gradient — see
+`docs/RESEARCH_LOG.md` Experiment 18. The budget-search follow-up
+(`experiments/run_atlas_nn_stage_c_real_budget_search.py`) is written and
+queued.
+
 ### Design constraints adopted for Track B
 
 - **CPU-only, no heavy ML dependencies for Stage A.** Only `numpy` is

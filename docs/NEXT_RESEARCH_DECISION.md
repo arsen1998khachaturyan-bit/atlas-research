@@ -1,105 +1,96 @@
 # Next Research Decision
 
-Updated after Experiment 17 (attention parameter-count disentanglement),
-which closed the last open ambiguity in the Transformer mechanism-hunting
-thread. Covers Track B (`atlas_nn`) only.
+Updated after Experiment 18 (Stage C real: distilgpt2 smoke test), the
+first experiment in this project to use a genuinely pretrained,
+externally-trained model. Covers Track B (`atlas_nn`) only.
 
 ## 1. What we learned
 
-**Experiments 3–9:** the core phenomenon (trained networks tolerate
-weight-compression error far better than tensor error predicts, scaling
-with depth) is well-established across two architectures, three tasks.
+**Experiments 3–17:** established, refined, and mechanistically explained
+the core behavioral-robustness effect (trained networks tolerate
+weight-compression error far better than tensor error predicts) across
+two from-scratch architectures (MLP, small Transformer) and several
+synthetic/self-authored tasks. The Transformer mechanism thread (10, 11,
+13, 14, 17) reached full resolution: cross-token mixing drives gain
+magnitude, LayerNorm drives rank-decoupling.
 
-**Experiments 10–14:** four architectural factors tested — residual
-connections ruled out; effective rank partially explains the MLP;
-LayerNorm drives rank-decoupling (generalizes) and a secondary magnitude
-effect; attention is the dominant magnitude driver, but `NoMixingAttention`
-confounded "no mixing" with "fewer parameters."
-
-**Experiment 17 (this round) — the confound resolved, decisively:** a
-same-parameter-count, non-mixing attention replacement lands at 4.4 mean
-gain — close to the original parameter-poor no-mixing result (3.4), far
-from full attention (16.3). Restoring ~12,000 parameters without
-restoring mixing changed almost nothing. **Cross-token mixing, not
-parameter count, is confirmed as what attention contributes.**
-
-**Experiments 12, 15, 16 (MLP input-layer thread, same period):** three
-hypotheses tested and ruled out (effective rank, noise fraction,
-raw-vs-processed input) — question remains open, no strong new lead.
-
-**Where the project stands now:** the Transformer mechanism-hunting
-thread (Experiments 10, 11, 13, 14, 17) has reached full resolution —
-every architectural factor tested has a specific, confirmed role, with no
-remaining ambiguity of the kind Experiment 17 just closed. This is very
-likely the natural stopping point for that specific thread; further work
-there would mean either new architectural factors (not yet identified)
-or moving beyond this toy-scale setup entirely.
+**Experiment 18 (this round) — the effect reproduces on a real pretrained
+model.** `huggingface.co` was unblocked by a user-side network-policy
+change partway through this session (previously blocked, see Experiment
+8's note). distilgpt2 (82M parameters, real HF Hub checkpoint, unknown
+training procedure) shows the same effect at 4.4–7.6× magnitude — in
+range with every from-scratch measurement before it (3–22.7×). The
+sharpest single result: `quantize_4bit_block64`'s tensor-level error was
+*higher* for pretrained than random-init, yet its behavioral error was
+7.6× *lower* — the cleanest demonstration yet that this is about
+behavioral robustness specifically, not generic tensor compressibility.
+One genuine divergence: the depth pattern (block 3 gains most, block 5
+least) is not the same clean monotonic gradient Stage C-lite found —
+reported, not smoothed over.
 
 ## 2. What failed / remains untested
 
-- Parameter count as an explanation for attention's magnitude effect —
-  ruled out decisively.
-- *Why* cross-token mixing specifically produces this effect (information-
-  theoretic? optimization-dynamics? something else?) — established that
-  it does and by how much, not the deeper mechanistic reason.
-- The MLP input-layer question — three hypotheses down, no new lead
-  generated this round (that thread was worked in parallel, see the
-  session's other work).
-- A genuine pretrained-model test — still blocked by network policy.
+- The budget-search (achievable-ratio-at-matched-quality) version of this
+  experiment — `experiments/run_atlas_nn_stage_c_real_budget_search.py`
+  exists but had not been run as of Experiment 18's writeup. This is the
+  direct, low-cost next step: turns the qualitative tensor-vs-behavior gap
+  into the same "Nx compression" number Experiments 4/6/9 produced for the
+  from-scratch models.
+- Why the depth pattern differs between distilgpt2 (non-monotonic,
+  3 points) and Stage C-lite (monotonic, 2 points) — not investigated;
+  could be a real architectural/training difference or simply that 2 data
+  points can't distinguish monotonic from non-monotonic in the first
+  place.
+- Effective-rank / LayerNorm / attention-mixing mechanism questions
+  (Experiments 10–17) have not been re-tested on distilgpt2 — the
+  mechanism picture from the from-scratch Transformer has not been checked
+  against a real pretrained one.
+- The MLP input-layer question (Experiments 4, 6, 7, 12, 15, 16) remains
+  open — no new lead from this round; Experiment 18 tested Conv1D
+  sublayers depth-wise, not an input-embedding-layer analogue.
+- Only one pretrained model tested. A second, differently-sized or
+  differently-trained checkpoint (e.g. gpt2 vs. gpt2-medium, or a
+  different architecture family) would test whether the magnitude/depth
+  findings are distilgpt2-specific or general.
 
 ## 3. What worked
 
-- Treating Experiment 14's own acknowledged confound (mixing vs.
-  parameters) as unfinished business, the same way Experiment 15 treated
-  Experiment 12's confound, continues to pay off — both times, closing a
-  self-identified gap either confirmed the original finding more
-  precisely or ruled out an alternative explanation cleanly.
-- Building in an internal consistency check (reproducing Experiment 14's
-  exact numbers within the same script before trusting the new condition)
-  caught nothing wrong here, but is exactly the kind of check that would
-  have caught a bug if one existed — worth continuing as standard practice
-  for any experiment that extends a previous one.
+- The architecture-agnostic `get_weight`/`set_weight`/`evaluate`/
+  `snapshot`/`load_snapshot` interface, unchanged since the Stage C-lite
+  refactor, worked without modification on a real HF `transformers` model
+  using `Conv1D` sublayers (a different module type and weight orientation
+  than `nn.Linear`) — a real test of that abstraction's generality, not
+  just its reuse across this project's own from-scratch models.
+- Scoping `snapshot`/`load_snapshot` to only the tested layers (rather
+  than a full 82M-parameter `state_dict()` deep copy per row, as Stage
+  B/C-lite do) kept per-row overhead manageable — necessary at this scale,
+  not needed at Stage B/C-lite's.
+- Deliberately reducing layer/method scope for CPU feasibility, and
+  saying so explicitly in the module docstring and the experiment
+  writeup, rather than silently running a smaller experiment and
+  presenting it as equivalent in power to earlier ones.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes, with the Transformer mechanism now understood about as precisely
-as this project's toy-scale setup allows.** Four architectural factors,
-each isolated to a specific role, with the last remaining ambiguity
-(mixing vs. parameters) now resolved. This is a natural point to
-consider that particular investigative thread complete, not because
-every question is answered, but because the remaining questions (why
-does mixing have this effect, mechanistically) would need different
-tools (e.g. direct analysis of attention patterns, information-theoretic
-measures) rather than more ablations of the same kind.
+**Yes, and more strongly than before.** Every prior demonstration of the
+central effect used a network this project trained itself. Experiment 18
+removes that as a possible confound entirely: a real, externally-trained,
+82M-parameter checkpoint shows the same effect, in the same magnitude
+range, on a task and training procedure this project has no control over
+or visibility into. This is the single piece of evidence closest to what
+mission Stage C originally asked for.
 
 ## 5. The single most informative next experiment
 
-With the Transformer-mechanism thread naturally concluded and the
-input-layer thread having run through its most obvious hypotheses, three
-reasonable directions remain, none clearly dominant:
+**Run the budget search** (`experiments/run_atlas_nn_stage_c_real_budget_search.py`,
+already written, scoped to 6 layers × 4 states for CPU feasibility) to
+convert Experiment 18's qualitative finding into an actionable
+"achievable compression ratio at 5% behavioral error" number — the same
+step Experiment 9 was for Experiment 8. This is queued and ready to run;
+no design work remains, only compute time.
 
-**(a)** Check whether an input-facing layer in the Transformer shows a
-pattern analogous to the MLP's input layer (queued since the previous
-round, not yet done) — would clarify whether "input layers are
-different" generalizes across architectures.
-
-**(b)** A genuine pretrained-model test, if network policy ever allows
-it — still the single highest-value possible addition to this research
-line, and now better-motivated than ever: four session's worth of
-ablation work has produced a specific, falsifiable mechanistic picture
-(mixing → magnitude, LayerNorm → decoupling) that a real pretrained model
-could directly test for the first time, rather than just adding another
-confirmation of the phenomenon in isolation.
-
-**(c)** Step back from ablation-style mechanism-hunting for now (both the
-Transformer and MLP threads have each produced a full, well-documented
-set of tested/ruled-out hypotheses) and consolidate: review the full
-project (17 experiments) for internal consistency, update
-`docs/CURRENT_STATE.md` to reflect the mature state of both tracks, and
-let the user decide the next investment given the current evidence base
-rather than continuing to generate new hypotheses autonomously.
-
-Given the volume of ablation work completed and the natural conclusion
-reached on the Transformer thread specifically, **(c)** is a reasonable
-default absent other direction — this is a good point for a consolidation
-pass rather than another open-ended hypothesis hunt.
+After that, in rough priority order: (a) a second pretrained checkpoint
+to test whether the depth-pattern divergence and magnitude range are
+distilgpt2-specific; (b) revisit the MLP input-layer question, still the
+project's longest-standing open thread; (c) a consolidation pass
+incorporating Experiment 18 into the project-wide synthesis artifact.
