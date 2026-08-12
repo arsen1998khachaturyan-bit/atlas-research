@@ -524,6 +524,57 @@ strongest single ablation result in the project so far by sample size and
 convergent-evidence structure, but still one architecture family and one
 task.
 
+> **✓ Update after Experiment 17 (parameter-count disentanglement):**
+> `NoMixingAttention` (used above) removed both mixing and ~3/4 of
+> attention's parameters at once, leaving it ambiguous which mattered.
+> Resolved: a variant with the exact same parameter count as real
+> attention (verified: 16,640 either way) but still no mixing lands at
+> 4.4 — close to the original no-mixing condition's 3.4, nowhere near
+> full attention's 16.3. **Mixing, not parameter count, is confirmed as
+> the operative factor.** See the new VERIFIED RESULT below.
+
+---
+
+## VERIFIED RESULT: attention's magnitude effect is specifically about cross-token mixing, not parameter count
+
+**Claim.** A same-parameter-count, non-mixing replacement for attention
+(`MatchedParamNoMixingAttention` — keeps `in_proj_weight`/`bias` as raw
+Parameters exactly like real `nn.MultiheadAttention`, verified 16,640
+parameters either way, but skips the softmax cross-token mixing step)
+produces a mean gain of 4.4 — statistically indistinguishable from the
+original parameter-poor no-mixing condition's 3.4, and nowhere near real
+attention's 16.3. Restoring ~12,000 parameters while still withholding
+mixing changed the outcome by less than one unit of gain, while
+withholding mixing alone (with or without those parameters) cuts the
+gain to roughly a quarter of full attention's.
+
+**How verified.** `experiments/run_atlas_nn_stage_c_lite_attention_param_disentangle.py`,
+3 conditions × 8 seeds, LayerNorm and residual connections held on
+throughout. The script's `full_attention` and `no_mixing_no_param_match`
+conditions exactly reproduce Experiment 14's numbers (16.3 and 3.4)
+before the new `no_mixing_matched_params` condition is trusted. Reproduce
+with `python -m experiments.run_atlas_nn_stage_c_lite_attention_param_disentangle`
+(writes `results/atlas_nn_stage_c_lite_attention_param_disentangle.json`).
+
+**Why this was a real test, not a foregone conclusion.** More parameters
+generally means more capacity for useful structure to develop during
+training — parameter count was a reasonable candidate explanation, not a
+straw man. Finding that it explains almost none of the effect (0.9 of
+the 12.9-point gap between full attention and no-mixing) is genuine
+information, not a confirmation of the obvious.
+
+**Current, most precise mechanism picture:** cross-token mixing
+(attention specifically, not just "having an attention-shaped sublayer")
+drives gain magnitude and part of the depth gradient; LayerNorm drives
+rank-decoupling and a smaller, independent magnitude contribution. Four
+architectural factors (rank, residual connections, LayerNorm, attention)
+have now each been isolated to a specific, tested role.
+
+**Scope.** One small Transformer, one task, 8 seeds. Explains *that*
+mixing matters far more precisely than parameter count, not *why* mixing
+specifically produces this effect at a mechanistic (e.g. information-
+theoretic or optimization-dynamics) level.
+
 ---
 
 ## OBSERVATION: the MLP input layer's compressibility does not track task-irrelevant input noise fraction (a specific hypothesis ruled out, not confirmed)

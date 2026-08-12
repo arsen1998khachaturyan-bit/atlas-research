@@ -1266,4 +1266,68 @@ The behavior itself remains real and reproducible — it just isn't
 explained by any capacity-, information-, or preprocessing-based story
 tried so far.
 
+**Next experiment.** Finish disentangling Experiment 14's attention
+ablation: was the magnitude-drop from removing attention really about
+losing cross-token mixing, or just about losing ~3/4 of attention's
+parameters?
+
+---
+
+## Experiment 17 — Attention's magnitude effect is about mixing, not parameter count
+
+**Hypothesis.** Experiment 14's `NoMixingAttention` removed both
+cross-token mixing and most of attention's parameters simultaneously
+(only `out_proj` remained; `in_proj_weight`, ~3/4 of the total, was
+dropped). If parameter count — not mixing — was the real driver of the
+79% gain drop found there, restoring parameter count while still skipping
+mixing should bring the gain back toward `full_attention`'s level. If
+mixing is what matters, restoring parameters without mixing should stay
+near `NoMixingAttention`'s level.
+
+**Method.** `experiments/run_atlas_nn_stage_c_lite_attention_param_disentangle.py`.
+Added `MatchedParamNoMixingAttention` (`atlas_nn.stage_c_lite.model`) —
+keeps `in_proj_weight`/`in_proj_bias` as raw Parameters (same storage
+convention as real `nn.MultiheadAttention`, invisible to
+`linear_layer_names`, so the tracked-layer set is unchanged), giving it
+the exact same total parameter count as real attention (verified: 16,640
+params either way), but skips the softmax cross-token mixing step
+entirely — the value projection goes straight to `out_proj`, per token.
+3 conditions, LayerNorm and residual held on, 8 seeds.
+
+**Result — parameter count restored, mixing still absent, gain stays
+low: mixing is the operative factor, decisively.**
+
+| condition | mean robustness gain | rank-shrinkage correlation |
+|---|---|---|
+| full_attention (baseline) | 16.3 | 0.23 |
+| no_mixing_no_param_match (= Experiment 14's `no_attention`) | 3.4 | 0.02 |
+| **no_mixing_matched_params** (new) | **4.4** | −0.05 |
+
+`no_mixing_matched_params` (4.4) lands close to the original
+parameter-poor no-mixing condition (3.4) — both far below full attention
+(16.3) — despite having the identical parameter count as real attention.
+Restoring the missing ~12,000 parameters (`in_proj_weight`/`bias`)
+changed the mean gain by only 0.9 (3.4→4.4, within seed-to-seed noise
+territory) while leaving out the actual mixing step left the gain at
+roughly a quarter of full attention's. The `full_attention` and
+`no_mixing_no_param_match` numbers here match Experiment 14's exactly
+(16.3 and 3.4), confirming this script correctly reproduces that
+experiment before trusting the new condition.
+
+**Interpretation.** This resolves the ambiguity Experiment 14 left open:
+attention's magnitude effect is about cross-token information mixing
+specifically, not about having more parameters in that sublayer. A
+same-sized but non-mixing sublayer behaves like no attention at all, not
+like attention. This sharpens the project's mechanism picture to its most
+precise form yet: **cross-token mixing (attention specifically) drives
+gain magnitude and part of the depth gradient; LayerNorm drives
+rank-decoupling and a smaller, independent magnitude contribution.**
+
+**Falsification value.** This was a genuine two-way test, not a foregone
+conclusion — parameter count could plausibly have been the real factor
+(more parameters generally means more capacity to develop useful
+structure during training). Finding that it wasn't is informative
+precisely because the alternative was a reasonable prior expectation, not
+a straw man.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
