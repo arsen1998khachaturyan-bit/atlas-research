@@ -1,89 +1,77 @@
 # Next Research Decision
 
-Updated after Experiment 26 (delta-rank capacity-sweep cross-check),
-which turned Experiment 25's single-condition finding into the strongest
-mechanism correlation found anywhere in this project. Covers Track B
-(`atlas_nn`) only.
+Updated after Experiment 27 (delta-rank on the Stage C-lite Transformer),
+a clean non-replication that echoes Experiment 10's earlier finding for
+the final-matrix version of this same mechanism-hunting approach. Covers
+Track B (`atlas_nn`) only.
 
 ## 1. What we learned
 
-**Experiment 25:** the training UPDATE's rank (not the final matrix's)
-cleanly separates the input layer (diffuse, 87.7% of available rank) from
-the hidden layer (concentrated, 34.9%), on one task/width, 8 seeds, zero
-overlap.
+**Experiments 25-26:** delta-rank fraction (effective rank of the
+training update, not the final matrix) is the strongest mechanism
+correlation found in this project (r=-0.75, MLP hidden layer, across a
+6-condition capacity sweep).
 
-**Experiment 26 (this round) -- confirmed and strengthened across a full
-capacity-sweep grid.** Within the hidden layer, delta-rank fraction
-correlates with compression-gain magnitude at r=-0.75 (Pearson),
-r=-0.70 (Spearman) across 6 conditions (2 tasks x 3 widths) -- stronger
-than Experiment 7's original final-matrix effective-rank finding
-(r=0.67), the first cross-check in this project to produce a *larger*
-effect than the result it verified. A visible pattern within the hard
-`parity3` task alone: delta-rank fraction falls 0.60->0.39->0.19 as width
-rises 16->64->256, while gain rises ~0.7x->1.0x->2.1x -- giving
-Experiments 5-6's capacity/slack story a mechanistic complement (spare
-capacity -> more concentrated training update -> more compressible).
-The input layer still shows no within-layer relationship (r=0.18) --
-its update stays diffuse regardless of task or width.
+**Experiment 27 (this round) -- doesn't transfer to the Transformer.**
+Pooled r=-0.15, block 0 r=+0.16 (wrong direction), block 1 r=-0.15
+(right direction, weak). A sublayer-type breakdown, if anything, points
+opposite to the MLP's result. This closely echoes Experiment 10's
+non-replication of the *final*-matrix effective-rank finding on this
+same architecture -- both versions of rank-based mechanism-hunting
+(final matrix, training update) hit the same wall on the Transformer.
 
 ## 2. What failed / remains untested
 
-- *Why* the input layer's update stays diffuse regardless of available
-  capacity, while the hidden layer's concentrates when capacity allows,
-  is still not established -- correlational evidence now spans two
-  experiments and 6+ conditions, but no causal mechanism has been tested.
-- Not yet checked on the Stage C-lite Transformer or any real pretrained
-  model -- the natural next step, mirroring how Experiments 8-9 extended
-  the original capacity-sweep finding beyond the MLP.
-- The output layer's degenerate delta-rank-fraction (exactly 0.500,
-  every seed, both experiments) has never been given a fair test --
-  would need a task/architecture where the output layer isn't stuck at
-  a 2-dimensional max rank.
-- Experiments 21-24's scale-vs-training-procedure question (on real
-  pretrained models) is still open, separately from this thread.
+- Only 3 seeds used for Experiment 27 (Experiment 9's original power).
+  Experiment 11's addendum showed raising 3->8 seeds materially changed
+  a weak/inconsistent correlation's picture (there, revealing a real
+  positive relationship that 3 seeds had obscured as slightly negative).
+  Not yet tried here -- the most direct, cheap next step before treating
+  this non-replication as final.
+- Why delta-rank fraction (and final-matrix effective rank before it)
+  works for the MLP but not the Transformer remains unexplained. A
+  plausible, untested story: residual connections and LayerNorm (already
+  implicated in Experiments 11/13/14/17 as an error-absorbing pathway
+  independent of any single sublayer's own weight structure) may make
+  rank-based metrics generally less informative on this architecture,
+  regardless of which specific rank-based quantity is measured.
+- Delta-rank fraction has not been checked on any real pretrained model.
+- The scale-vs-training-procedure question from Experiments 21-24 remains
+  open, separately from this thread.
 
 ## 3. What worked
 
-- Running the exact cross-check Experiment 25 itself proposed (does the
-  finding predict magnitude, not just direction, across the established
-  capacity-sweep grid) rather than treating a clean single-condition
-  result as sufficient on its own -- this is precisely the discipline
-  that turned Experiment 7's original finding into something trustworthy,
-  now applied to a new metric with an even stronger result.
-- Catching a sign-interpretation subtlety before writing it up: a
-  negative correlation between delta-rank *fraction* (low = concentrated)
-  and gain is the *same direction* as a positive correlation between
-  rank *shrinkage* (high = more shrinkage) and gain in Experiment 7 --
-  worth being explicit about this when comparing the two metrics'
-  reported correlation signs going forward.
+- Treating "does this transfer to the Transformer" as a real, gate-worthy
+  question rather than assuming a strong MLP result would generalize --
+  exactly the discipline that caught the Experiment 7->10 non-replication
+  the first time this exact pattern occurred, now applied consistently
+  to a second, related metric.
+- Flagging the classifier head's r=0.95 as a numerical artifact (constant
+  input to a correlation, degenerate 2-dimensional max rank) before it
+  could be mistaken for a real finding -- the same discipline Experiment
+  7 established for this exact layer type.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes, and the mechanism picture for the MLP thread is now the most
-precise it has been.** Delta-rank fraction is currently the single
-strongest quantitative predictor of compression-gain magnitude found
-anywhere in this project (r=-0.75, hidden layer, 6 conditions) --
-stronger than the original effective-rank finding it was built to
-extend. It also unifies two previously separate findings (the
-capacity/slack story and the rank-based mechanism story) into one
-picture: spare capacity changes how training updates weights, not just
-how compressible the result ends up being.
+**Yes on the core claim; the delta-rank mechanism is now known to be
+MLP-specific, not general.** The central behavioral-robustness effect
+remains well-supported across every architecture and every real model
+tested. The *specific* rank-based explanations for *why* (both final-
+matrix and training-update versions) are now known to work well for the
+MLP and poorly for the Transformer -- a real, useful narrowing of what
+"the mechanism" actually is, not evidence against the phenomenon itself.
 
 ## 5. The single most informative next experiment
 
-**Check whether delta-rank fraction transfers to the Stage C-lite
-Transformer**, the same generalization step Experiments 8-9 took for the
-original capacity-sweep finding. This would test whether "spare capacity
-concentrates the training update" is a general property of trained
-networks or specific to the MLP, and would give the Transformer
-mechanism-hunting thread (Experiments 10-17, which found effective rank
-of the *final* matrix a weaker predictor there) a genuinely new angle to
-try.
+**Rerun Experiment 27 at 8 seeds**, mirroring exactly how Experiment 11's
+addendum resolved a similar weak/ambiguous 3-seed correlation on this
+same Transformer. Cheap (Stage C-lite training is fast) and the most
+direct way to know whether this non-replication is real or another
+small-sample artifact before treating it as settled.
 
-After that, in rough priority order: (a) a real pretrained-model check
-of delta-rank fraction (would need access to a model's own random-init
-counterpart, straightforward given the Stage C (real) infrastructure
-already built); (b) a fourth pretrained model isolating scale from
-training procedure (Experiments 21-24's still-open question); (c) fold
-Experiments 18-26 into the project-wide synthesis artifact, which
-currently stops at Experiment 17.
+After that, in rough priority order: (a) a fourth pretrained model
+isolating scale from training procedure (Experiments 21-24's still-open
+question); (b) a real pretrained-model check of delta-rank fraction,
+now that the Stage C (real) infrastructure exists; (c) fold Experiments
+18-27 into the project-wide synthesis artifact, which currently stops at
+Experiment 17.

@@ -366,12 +366,26 @@ shows no within-layer relationship (r=0.18) — its update stays diffuse
 regardless of task or width. Promoted from "partial" to a full VERIFIED
 RESULT in `docs/BEST_RESULTS.md`.
 
-See `docs/RESEARCH_LOG.md` Experiments 18–26 and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (checking whether
-delta-rank fraction transfers to the Stage C-lite Transformer — the
-clear next step — a real pretrained-model check, a fourth pretrained
-model isolating scale from training procedure, or folding all of this
-into the synthesis artifact).
+**Experiment 27 (Transformer transfer check, completed) — does NOT
+replicate, echoing Experiment 10.** Delta-rank fraction on the Stage
+C-lite Transformer: pooled r=−0.15, block 0 r=+0.16 (wrong direction),
+block 1 r=−0.15 (right direction, weak) — no clean relationship, at 3
+seeds (Experiment 9's original power). The classifier head's apparent
+r=0.95 is a numerical artifact (degenerate 2-dimensional max rank,
+delta-rank fraction constant at 0.500), excluded from interpretation.
+This closely mirrors Experiment 10's non-replication of the *final*-
+matrix effective-rank finding on this same architecture — both versions
+of rank-based mechanism-hunting hit the same Transformer wall. Flagged as
+possibly a seed-count artifact (Experiment 11's addendum showed raising
+3→8 seeds materially changed a similar weak correlation) rather than
+settled.
+
+See `docs/RESEARCH_LOG.md` Experiments 18–27 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (rerunning
+Experiment 27 at 8 seeds to check the small-sample-artifact possibility —
+the clear next step — a fourth pretrained model isolating scale from
+training procedure, a real pretrained-model check of delta-rank fraction,
+or folding all of this into the synthesis artifact).
 
 ### Design constraints adopted for Track B
 

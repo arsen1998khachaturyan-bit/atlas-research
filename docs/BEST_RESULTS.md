@@ -1183,6 +1183,38 @@ does, on two independent measures now.
 
 ---
 
+## OBSERVATION: delta-rank fraction does NOT transfer cleanly to the Stage C-lite Transformer
+
+**What was tested.** Whether Experiments 25–26's strongest-in-the-project
+correlation (delta-rank fraction vs. compression-gain magnitude, r=−0.75
+on the MLP hidden layer) holds on the Stage C-lite Transformer, using
+Experiment 9's exact 3-seed training setup and the compression-gain
+numbers already measured there.
+
+**Result.** No clean relationship: pooled r=−0.15 (weak), block 0 r=+0.16
+(wrong direction), block 1 r=−0.15 (right direction, weak). The
+classifier head's apparent r=0.95 is a numerical artifact of that layer's
+degenerate 2-dimensional max rank (delta-rank fraction constant at 0.500
+to 3 decimals), not a real finding. A sublayer-type breakdown, if
+anything, points the *opposite* direction from the MLP's result:
+`out_proj` has the lowest (most-concentrated) mean delta-rank fraction
+of any sublayer type but the *lowest* mean gain, not the highest.
+
+**Why this belongs here even though it's a clean negative.** It directly
+echoes Experiment 10's non-replication of the *final*-matrix effective-rank
+finding on this same Transformer — both the "final matrix" and "training
+update" versions of this rank-based mechanism-hunting approach hit the
+same architecture-generalization wall. Reported per mission section 11:
+a negative result that narrows a promising finding's scope is exactly as
+valuable as the positive finding itself.
+
+**Caveat.** 3 seeds only (Experiment 9's original power, not the
+project's later 8-seed standard) — Experiment 11's addendum showed a
+qualitatively similar re-run at 8 seeds can meaningfully change a
+weak/inconsistent correlation's picture. Not yet re-run at higher power.
+
+---
+
 ## Explicitly not yet claimed
 
 - Nothing about *larger* networks (mission Stage D) or models above ~100M

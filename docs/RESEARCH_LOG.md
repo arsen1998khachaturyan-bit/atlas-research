@@ -2229,3 +2229,78 @@ model — the natural next step, mirroring how Experiments 8–9 extended
 the original capacity-sweep finding beyond the MLP.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 27 — Does delta-rank fraction transfer to the Transformer? No — echoing Experiment 10's non-replication of the final-matrix finding
+
+**Hypothesis.** Given delta-rank fraction is now the strongest mechanism
+correlation found in this project (r=−0.75, Experiment 26, MLP hidden
+layer), it should — if it reflects something general about trained
+networks — show a similar relationship on the Stage C-lite Transformer.
+Flagged going in as a real test, not a foregone conclusion: Experiment 10
+already found the *final*-matrix effective-rank finding did not transfer
+cleanly to this same Transformer (initial r=−0.25 to −0.54, later
+corrected to a real but much weaker r=0.23–0.55 after Experiment 11's
+larger seed count).
+
+**Method.** `experiments/analyze_stage_c_lite_delta_rank.py`, reproducing
+Experiment 9's exact training setup (3 seeds), computing delta-rank
+fraction for all 7 Linear layers and correlating against the
+`compression_gain` already measured in `results/
+atlas_nn_stage_c_lite_budget_search.json`. `results/
+atlas_nn_stage_c_lite_delta_rank.json`.
+
+**Result — no clean relationship, in either pooled or per-block form
+(n=21, 3 seeds × 7 layers):**
+
+| scope | n | Pearson r |
+|---|---|---|
+| overall (pooled) | 21 | −0.15 |
+| block 0 | 9 | +0.16 (wrong direction) |
+| block 1 | 9 | −0.15 (right direction, weak) |
+| classifier head | 3 | 0.95 (**not meaningful — see caveat**) |
+
+The classifier head's r=0.95 is an artifact, not a finding: its
+`delta_rank_fraction` is 0.500 in all 3 seeds to 3 decimal places (this
+layer has `max_rank=2`, the same degenerate-scale caveat Experiment 7
+flagged for the MLP's output layer) — the reported correlation comes from
+sub-rounding floating-point noise around an effectively constant value,
+not a real relationship. Excluded from interpretation.
+
+**A sublayer-type breakdown that directly contradicts the naive
+prediction.** `out_proj` has the *lowest* mean delta-rank fraction (0.372,
+most concentrated) of any sublayer type, which the MLP finding would
+predict should mean the *highest* gain — instead it has the *lowest*
+mean gain (2.230) of the three real sublayer types. `linear2` has a
+middling delta-rank fraction (0.473) and the *highest* gain (3.813). If
+anything, this specific breakdown points the opposite direction from the
+MLP's finding, though with too few sublayer types (3) to treat as a
+reliable pattern on its own.
+
+**Interpretation.** A genuine, reportable non-replication — not
+softened, not buried. Delta-rank fraction's strong correlation with
+compression gain (Experiments 25–26) appears to be a real property of
+this project's MLP specifically, not a general property of "how trained
+networks work" that automatically transfers across architectures. This
+echoes Experiment 10's finding almost exactly: a mechanism metric
+computed on the final matrix's structure predicted the MLP well and the
+Transformer poorly; the same now holds for a metric computed on the
+*update's* structure instead. Both the "what" (rank-based capacity
+metrics) and now "when" (final matrix vs. training update) versions of
+this mechanism-hunting approach hit the same architecture-generalization
+wall. A plausible (unverified) reading: the Transformer's residual
+connections and LayerNorm — already implicated in Experiments 11/13/14/17
+as providing an error-absorbing pathway independent of any single
+sublayer's own weight structure — may make *both* kinds of rank-based
+metric (final matrix, training update) less informative there than they
+are for the MLP, which has neither.
+
+**Scope of the claim.** One Transformer, one real (self-authored) task,
+3 seeds — the project's original Stage C-lite power level, not the later
+8-seed standard. A larger-seed rerun (mirroring how Experiment 11's
+addendum raised its own seed count from 3 to 8 and materially changed the
+picture) has not been tried and could plausibly sharpen or reverse this
+reading, per that exact precedent.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
