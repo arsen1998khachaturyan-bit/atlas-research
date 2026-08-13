@@ -9,10 +9,12 @@ MLP (r=-0.25 to -0.54 initially, later corrected to a real but weaker
 positive r=0.23-0.55 after Experiment 11's larger seed count). This asks
 the same question of the *update's* rank instead of the final matrix's.
 
-Reproduces Experiment 9's exact setup (same seeds, same training) purely
-to extract this additional diagnostic, correlating against the
-compression_gain already measured in results/atlas_nn_stage_c_lite_
-budget_search.json -- no new compression sweeps needed.
+Reproduces Experiment 9's exact training setup at 8 seeds (extended from
+the original 3, mirroring how Experiment 11's addendum resolved a
+similarly weak/ambiguous correlation on this same Transformer by raising
+seed count), correlating against compression_gain from a matching 8-seed
+rerun of run_atlas_nn_stage_c_lite_budget_search.py -- no new compression
+methodology, just more seeds on both sides of the lookup.
 """
 from __future__ import annotations
 
@@ -32,7 +34,7 @@ from atlas_nn.stage_c_lite.dataset import (
 )
 from atlas_nn.stage_c_lite.model import build_transformer_classifier, get_weight, linear_layer_names
 
-SEEDS = (11, 22, 33)
+SEEDS = (11, 22, 33, 44, 55, 66, 77, 88)
 N_EXAMPLES = 200
 N_TRAIN = 150
 MAX_LEN = 16

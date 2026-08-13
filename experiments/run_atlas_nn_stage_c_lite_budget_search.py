@@ -29,7 +29,7 @@ from atlas_nn.stage_c_lite.model import (
     set_weight,
 )
 
-SEEDS = (11, 22, 33)
+SEEDS = (11, 22, 33, 44, 55, 66, 77, 88)
 N_EXAMPLES = 200
 N_TRAIN = 150
 MAX_LEN = 16
