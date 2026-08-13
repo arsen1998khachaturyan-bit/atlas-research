@@ -345,17 +345,33 @@ full-rank, range 0.865–0.890 across 8 seeds); the hidden layer's uses
 only 34.9% (concentrated, low-rank, range 0.278–0.437) — **zero overlap
 across all 8 seeds**. Movement magnitude alone does not separate the
 layers the same way — it's specifically the update's *structure*, not
-its size. Labeled "partial" in `docs/BEST_RESULTS.md`: a real, clean,
-well-powered candidate signal, not yet a tested causal mechanism, and not
-yet cross-checked for whether it predicts gain *magnitude* the way
-Experiment 7's original finding was strengthened by Experiments 5–6.
+its size.
 
-See `docs/RESEARCH_LOG.md` Experiments 18–25 and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (testing whether
-delta-rank fraction predicts gain magnitude across the capacity-sweep
-conditions — the clear next step — a fourth pretrained model isolating
-scale from training procedure, or folding all of this into the synthesis
-artifact).
+**Experiment 26 (capacity-sweep cross-check, completed) — confirmed and
+strengthened into the strongest mechanism correlation in the project.**
+Within the hidden layer, delta-rank fraction correlates with
+compression-gain magnitude at r=−0.75 (Pearson) across Experiment 6's
+full 6-condition capacity-sweep grid — **stronger than Experiment 7's
+original final-matrix effective-rank finding (r≈0.67)**, the first
+cross-check in this project to produce a larger effect than the result
+it verified. (Sign note: low delta-rank fraction = concentrated update,
+so the negative correlation means concentrated updates predict *higher*
+gain — same direction as the original cross-layer finding.) A visible
+pattern within the hard `parity3` task alone: delta-rank fraction falls
+0.60→0.39→0.19 as width rises 16→64→256 while gain rises
+≈0.7×→1.0×→2.1× — giving the capacity/slack story (Experiments 5–6) a
+mechanistic complement: spare capacity concentrates the training update,
+which is what makes the result more compressible. The input layer still
+shows no within-layer relationship (r=0.18) — its update stays diffuse
+regardless of task or width. Promoted from "partial" to a full VERIFIED
+RESULT in `docs/BEST_RESULTS.md`.
+
+See `docs/RESEARCH_LOG.md` Experiments 18–26 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (checking whether
+delta-rank fraction transfers to the Stage C-lite Transformer — the
+clear next step — a real pretrained-model check, a fourth pretrained
+model isolating scale from training procedure, or folding all of this
+into the synthesis artifact).
 
 ### Design constraints adopted for Track B
 

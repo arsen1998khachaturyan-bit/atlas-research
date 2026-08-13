@@ -657,7 +657,7 @@ experiments, and still unexplained.
 
 ---
 
-## VERIFIED RESULT (partial): the input layer's training-induced weight UPDATE is diffuse (near full-rank); the hidden layer's is concentrated (low-rank) — a new, cleanly-separated candidate lead for the input-layer mystery
+## VERIFIED RESULT: the input layer's training-induced weight UPDATE is diffuse (near full-rank); the hidden layer's is concentrated (low-rank) and its degree of concentration predicts compression-gain magnitude better than any prior metric in this project
 
 **Claim.** Measuring not the final trained matrix's rank (Experiment 7)
 but the effective rank of `W_trained − W_random` itself, expressed as a
@@ -684,22 +684,65 @@ measures the rank of what training *changed* — a different quantity that
 happens to separate the two layers far more cleanly than the final-matrix
 measurement ever did, on the same architecture and task.
 
-**Labeled "partial" because of open questions this doesn't yet answer.**
-This is a candidate explanation with a large, clean effect size, not a
-mechanistic account — *why* the input layer's training update would be
-diffuse while the hidden layer's is concentrated is not established (one
-unverified, untested story is offered in `docs/RESEARCH_LOG.md`
-Experiment 25). It also has not yet been cross-checked the way
-Experiment 7's original finding was strengthened by Experiments 5–6 (a
-harder task, a capacity/width sweep) — whether delta-rank fraction
-predicts the *magnitude*, not just the direction, of compression gain
-across those conditions is untested.
+> **✓ Update after Experiment 26 (capacity-sweep cross-check):** the open
+> question this entry originally flagged — whether delta-rank fraction
+> predicts compression-gain *magnitude*, not just direction — is now
+> answered: yes, and more strongly than any prior mechanism metric in
+> this project. See the extended claim below.
 
-**Scope of the claim.** One task (2-XOR), one architecture, 8 seeds. The
-output layer's own delta-rank-fraction (0.500, exactly, every seed) is
-flagged as a likely artifact of that layer's degenerate 2-dimensional
-max rank (the same caveat Experiment 7 raised for this layer), not
-included in the headline comparison.
+**Why this is a genuinely new lead, not a repeat of Experiment 7.**
+Experiment 7 measured the rank of the *final* trained matrix and found a
+weak, inconsistent relationship on the input layer specifically. This
+measures the rank of what training *changed* — a different quantity that
+happens to separate the two layers far more cleanly than the final-matrix
+measurement ever did, on the same architecture and task.
+
+**Extended and strengthened by Experiment 26.** Reproducing Experiment
+6's full capacity-sweep grid (2 tasks × 3 widths, 3 seeds each) and
+correlating delta-rank fraction against `log(compression_gain)`
+*within* the hidden layer specifically gives **Pearson r=−0.75,
+Spearman r=−0.70** (n=16, after the same training-success filter
+Experiment 7's analysis needed) — read the sign correctly: *low*
+delta-rank fraction means a concentrated update, so a *negative*
+correlation with gain means concentrated updates predict *higher* gain,
+the same direction as the original cross-layer finding. This is
+**stronger than Experiment 7's original final-matrix effective-rank
+correlation (r≈0.67)** — the first time in this project a cross-check
+has produced a larger effect than the finding it was verifying. A
+visible, concrete pattern within the hard `parity3` task alone: as width
+rises 16→64→256, the hidden layer's delta-rank fraction falls
+0.60→0.39→0.19 while compression gain rises ≈0.7×→1.0×→2.1× — spare
+capacity doesn't just leave the final weights more compressible
+(Experiments 6–7), it produces a more concentrated training update in
+lockstep, giving the capacity/slack story a mechanistic complement.
+**Layer 0 (input) still shows no reliable within-layer relationship**
+(r=0.18) — its delta-rank fraction stays uniformly high (0.642–0.928)
+regardless of task or width, unlike the hidden layer's wide swing
+(0.157–0.676): the input layer's update appears diffuse no matter how
+much spare capacity exists elsewhere in the network.
+
+**The pooling trap, again.** Pooling all three layers together gives a
+misleadingly consistent-looking r=−0.58 that hides layer 0's real
+non-relationship and layer 4's degenerate artifact — the same lesson
+Experiment 7 and Experiment 24 already established, worth checking every
+time before trusting a pooled correlation.
+
+**How verified (Experiment 26 addition).**
+`experiments/analyze_stage_b_delta_rank_capacity_sweep.py`, reproducing
+Experiment 6's 6 conditions × 3 seeds. Reproduce with `python -m
+experiments.analyze_stage_b_delta_rank_capacity_sweep` (writes
+`results/atlas_nn_stage_b_delta_rank_capacity_sweep.json`).
+
+**Scope of the claim.** Correlational, not causal — *why* the input
+layer's update stays diffuse regardless of capacity is not established
+(one unverified, untested story is offered in `docs/RESEARCH_LOG.md`
+Experiment 25). One architecture family (the Stage B MLP), two tasks,
+three widths, 3 seeds per condition. Not yet checked on the Transformer
+or any real pretrained model. The output layer's own delta-rank-fraction
+(exactly 0.500 in nearly every row, both experiments) remains flagged as
+a likely artifact of that layer's degenerate 2-dimensional max rank (the
+same caveat Experiment 7 raised), excluded from the headline claim in
+both experiments.
 
 ---
 

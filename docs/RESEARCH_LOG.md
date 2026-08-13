@@ -2130,3 +2130,102 @@ the original effective-rank finding, and not yet checked on the
 Transformer or any real pretrained model.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 26 — Does delta-rank fraction predict gain MAGNITUDE, not just direction? Yes, and it's stronger than Experiment 7's original finding
+
+**Hypothesis.** Experiment 25 found delta-rank fraction cleanly separates
+the input layer (no gain, diffuse update) from the hidden layer (positive
+gain, concentrated update) — but on one task/width only. If this is a
+real mechanism rather than a single-condition coincidence, it should
+predict the *magnitude* of compression gain across Experiment 6's full
+capacity-sweep grid (2 tasks × 3 widths), the same cross-check that
+turned Experiment 7's final-matrix effective-rank finding into a
+quantitative, multi-condition relationship.
+
+**Method.** `experiments/analyze_stage_b_delta_rank_capacity_sweep.py`.
+Reproduces all 6 of Experiment 6's conditions (`xor2`/`parity3` ×
+widths 16/64/256), 3 seeds each, computing delta-rank fraction per layer
+and correlating it (Pearson, Spearman) against `log(compression_gain)`
+already measured there. Uses the "near ceiling" training-success filter
+from the start (the fix Experiment 7's analysis needed after the fact).
+`results/atlas_nn_stage_b_delta_rank_capacity_sweep.json`.
+
+**Result — confirmed and strengthened, once read layer-by-layer (n=16
+per layer after the training-success filter):**
+
+| layer | Pearson r | Spearman r | mean delta-rank fraction |
+|---|---|---|---|
+| 0 (input) | 0.18 | −0.09 | 0.841 (narrow range: 0.642–0.928) |
+| 2 (hidden) | **−0.75** | **−0.70** | 0.399 (wide range: 0.157–0.676) |
+| 4 (output) | 0.62 | 0.65 | 0.500 exactly (degenerate, see caveat) |
+
+Read the sign correctly: delta-rank fraction is *low* when a layer's
+training update is concentrated/low-rank, *high* when diffuse. A
+**negative** correlation with `log(compression_gain)` therefore means
+*lower* delta-rank fraction (more concentrated update) predicts *higher*
+gain — exactly Experiment 25's cross-layer direction, now confirmed
+*within* the hidden layer across 6 different conditions. At r=−0.75, this
+is a **stronger** correlation than Experiment 7's original final-matrix
+effective-rank finding (r≈0.67) — the first time in this project a
+follow-up cross-check has produced a *larger* effect than the result it
+was checking.
+
+**A concrete, visible pattern within `parity3` alone (the hard task, same
+one Experiment 6 used to confirm the capacity/slack hypothesis):** as
+width rises 16→64→256, the hidden layer's delta-rank fraction falls
+0.60→0.39→0.19 while compression gain rises ≈0.7×→1.0×→2.1× (means).
+More spare capacity doesn't just create more compressible *final*
+weights (Experiment 6/7's story) — it produces a more *concentrated
+training update* in lockstep, giving a mechanistic complement to the
+capacity/slack story: spare capacity → the update training makes is more
+low-rank → the layer becomes more compressible.
+
+**Layer 0 (input) still shows no reliable within-layer relationship**
+(r=0.18, inconsistent Spearman sign) — but for a different reason than
+"delta rank doesn't matter here": its delta-rank fraction stays
+uniformly high (0.642–0.928) across every condition tested, barely
+varying with task or width, unlike the hidden layer's wide swing
+(0.157–0.676). The input layer's update appears to be diffuse
+*regardless* of available capacity — it doesn't get to concentrate the
+way internal layers do when given more room, which may itself be a clue
+(see Interpretation).
+
+**Layer 4 (output) is degenerate, as flagged before.** Its
+`delta_rank_fraction` is exactly 0.500 in nearly every row (this layer's
+`max_rank=2`, making effective rank close to a binary variable) — the
+r=0.62 here is not treated as a meaningful measurement, same caveat
+Experiment 7 raised for this layer.
+
+**The pooling trap, again.** Pooling all three layers together gives
+r=−0.58 — technically in the "right" direction only because layer 2
+dominates the pooled sample, but it hides that layer 0 shows no real
+relationship and layer 4's number is an artifact. The same lesson
+Experiment 7 and Experiment 24 already established: always check
+per-layer (or per-model) before trusting a pooled correlation.
+
+**Interpretation.** This is the strongest replication of any mechanism
+finding in the MLP thread of this project. It reframes the capacity/slack
+story (Experiments 5–6) mechanistically: spare capacity doesn't just
+leave the final weights more compressible, it changes *how training
+updates the weights in the first place* — with more room to work with,
+the hidden layer's update concentrates into fewer effective directions.
+The input layer's update stays diffuse no matter how much spare capacity
+exists elsewhere in the network, consistent with (though not proof of)
+the candidate story from Experiment 25: this layer must preserve
+information about every task-relevant input coordinate somewhat
+independently, since nothing internal to the network can recover a
+coordinate this layer discards, which may force a broader correction
+regardless of how much "slack" the rest of the network has.
+
+**Scope of the claim.** One architecture family (the Stage B MLP), two
+tasks, three widths, 3 seeds per condition (matching Experiment 6/7's
+original power, not the project's later 8-seed standard — n=16 per layer
+after filtering is smaller than Experiment 25's own n=8 single-condition
+comparison, though spread across more conditions). Correlational, not
+causal. Not yet checked on the Transformer, nor on any real pretrained
+model — the natural next step, mirroring how Experiments 8–9 extended
+the original capacity-sweep finding beyond the MLP.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
