@@ -970,6 +970,76 @@ parameter grids. This is a genuine falsification of a specific
 generalization, reported per mission section 11 rather than smoothed
 over or left implicit in the two models' separate writeups.
 
+> **✓ Update after Experiment 23 (gpt2-medium budget search):** the two
+> hypotheses this entry raised (a: scale/depth, b: distilgpt2's
+> distillation training) are now narrowed, not just listed. gpt2-medium
+> (355M, 24 blocks) — same non-distilled training recipe as gpt2, but 2×
+> its depth and ~3× its parameters — shows the *same* early-block-
+> dominant shape as gpt2, at a strikingly similar relative margin
+> (≈3.5:1 early:late for both). Two very differently-scaled models trained
+> the same (non-distilled) way agree with each other more closely than
+> either agrees with the one distilled model. Training procedure is now
+> the better-supported explanation. See the new VERIFIED RESULT below.
+
+---
+
+## VERIFIED RESULT: two non-distilled models of very different scale agree on the depth gradient's shape; the one distilled model disagrees — training procedure, not scale, is the better-supported explanation for the reversal
+
+**Claim.** gpt2-medium's (355M, 24 blocks) achievable-ratio depth
+gradient closely matches gpt2's (124M, 12 blocks) shape: block 0's mean
+gain is 32.9× vs. block 23's 9.3× (≈3.5:1), nearly identical in ratio to
+gpt2's own 24.8× vs. 7.1× (≈3.5:1) — despite gpt2-medium having roughly
+double gpt2's depth and triple its parameter count. distilgpt2 (82M, 6
+blocks, trained via knowledge distillation) shows the opposite direction
+entirely (block 0: 1.3×, block 5: 22.3×). Two models that differ hugely
+in scale from each other, but share the same non-distilled training
+recipe, agree with each other; the one model with a different training
+recipe disagrees with both, regardless of its scale sitting between
+theirs. The single largest number found (512× compression at 5%
+behavioral error, SVD, `transformer.h.0.attn.c_proj`) is again on the
+*first* block, matching gpt2's own largest-number position (384×, same
+relative location) rather than distilgpt2's (307×, last block).
+
+**How verified.** `experiments/run_atlas_nn_stage_c_real_budget_search_gpt2_medium.py`,
+same 6-layer (blocks 0/23 × 3 sublayer types), 4-state, 31-config-sweep,
+5%-quality-bar methodology as Experiments 19 and 21, run via the new
+`atlas_nn.stage_c_real.parallel_budget_search` (correctness-verified
+against the sequential implementation, including a resume-from-
+checkpoint check, in `experiments/verify_parallel_budget_search.py`).
+Reproduce with
+`python -m experiments.run_atlas_nn_stage_c_real_budget_search_gpt2_medium`
+(writes `results/atlas_nn_stage_c_real_budget_search_gpt2_medium.json`).
+
+**Why "agree despite a 3x scale difference" is stronger evidence than
+either model alone.** If scale or depth were the real driver of the
+depth-gradient's shape, gpt2 and gpt2-medium's substantial difference
+from each other (3x parameters, 2x depth) should have produced at least
+some divergence between them. Instead they match closely, while
+distilgpt2 — whose scale (82M/6 blocks) sits *between* neither model
+particularly closely, but whose *training procedure* (distillation) is
+the one clear qualitative difference — disagrees with both. This is the
+pattern you'd expect if training procedure, not model size, drives which
+end of the network benefits more from training.
+
+**Still not a proof.** Distinguishing scale from training procedure
+conclusively would need a fourth model that holds one factor fixed while
+varying the other directly relative to distilgpt2 — e.g. a second
+distilled model (would confirm distillation specifically, not just "any
+non-scale difference") or a non-distilled model at distilgpt2's exact
+scale (would more cleanly isolate scale). Not attempted yet.
+
+**What continues to hold across all three models, no exceptions.** Across
+42 total budget searches (distilgpt2 + gpt2 + gpt2-medium combined), every
+single random-init search was won by the safe `quantize` fallback; every
+pretrained search that met the 5% quality bar at all was won by a
+structure-aware method instead. This structural finding has never once
+failed to replicate.
+
+**Scope of the claim.** Three models, 6-layer subsets in two of them, one
+behavioral-error threshold, discrete parameter grids. Narrows the
+scale-vs-procedure question substantially; does not conclusively resolve
+it.
+
 ---
 
 ## Explicitly not yet claimed

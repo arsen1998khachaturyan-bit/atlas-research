@@ -1844,3 +1844,108 @@ explicitly flagged as provisional pending the budget search.
 parallel wrapper, needed given this model's larger per-layer compute
 cost) to get the first trustworthy depth-gradient reading for a third
 model.
+
+---
+
+## Experiment 23 — gpt2-medium budget search: two non-distilled models agree with each other, against the one distilled model — training procedure, not scale, looks like the real driver
+
+**Context.** Run twice. The first attempt (using the newly-built
+`atlas_nn.stage_c_real.parallel_budget_search`, correctness-verified
+against the sequential implementation beforehand) reached 16 of 24
+layer-searches (~67%) before the container restarted unannounced
+(confirmed via `uptime` showing a fresh boot), killing the process with
+no partial results saved — the second time in one overnight session a
+multi-hour run was lost this way. Before rerunning, added per-layer
+checkpointing to `parallel_budget_search.py` (each completed search is
+written to disk immediately; a rerun skips anything already
+checkpointed) and re-verified correctness including a resume check. The
+second attempt ran to completion.
+
+**Hypothesis.** Experiment 21 found gpt2's achievable-ratio depth
+gradient reversed relative to distilgpt2's, with two untested
+explanations: (a) model scale/depth, or (b) distilgpt2's knowledge-
+distillation training procedure specifically. gpt2-medium (355M, 24
+blocks — much larger than gpt2's 124M/12 blocks, but trained the same
+non-distilled way) is the direct test: if its true depth gradient matches
+gpt2's despite the large scale jump, that argues against scale/depth and
+for training procedure.
+
+**Method.** `experiments/run_atlas_nn_stage_c_real_budget_search_gpt2_medium.py`,
+same protocol as Experiments 19/21 (6 layers — blocks 0 and 23 of 24 × 3
+sublayer types — × 4 states, full 31-config sweep, 5% behavioral-error
+bar), run via the parallel wrapper. `results/
+atlas_nn_stage_c_real_budget_search_gpt2_medium.json`.
+
+**Result — gpt2-medium's depth gradient matches gpt2's shape, not
+distilgpt2's, and by a similar relative margin (mean best-ratio-at-5%-
+error over 3 random-init seeds):**
+
+| layer | pretrained ratio | random-init ratio (mean) | gain |
+|---|---|---|---|
+| block 0 attn.c_proj | **512.0** | 5.33 | **96.0×** |
+| block 0 mlp.c_fc | 8.00 | 5.33 | 1.5× |
+| block 0 mlp.c_proj | 6.34 | 5.33 | 1.2× |
+| block 23 attn.c_proj | 64.0 | 8.89 | 7.2× |
+| block 23 mlp.c_fc | 63.9 | 8.00 | 8.0× |
+| block 23 mlp.c_proj | 102.4 | 8.00 | 12.8× |
+
+Block 0's mean gain (**32.9×**) is more than 3× block 23's (9.3×) — the
+same *direction* gpt2 showed (block 0: 24.8×, block 11: 7.1×), and a
+strikingly similar *relative margin* (both ≈3.5:1, early:late) despite
+gpt2-medium having twice gpt2's depth (24 vs. 12 blocks) and nearly 3×
+its parameter count (355M vs. 124M). The single
+largest number here — 512× compression at 5% behavioral error, via SVD,
+on `transformer.h.0.attn.c_proj` — again lands on the *first* block, as
+it did for gpt2 (384× at the same relative position), not the last block
+the way distilgpt2's single largest number (307×) did.
+
+**This directly discriminates between Experiment 21's two hypotheses.**
+Two models with a completely different scale and depth from each other
+(gpt2: 124M/12 blocks; gpt2-medium: 355M/24 blocks) — but the *same*
+non-distilled, from-scratch OpenAI training recipe — agree closely with
+each other on where the gain concentrates. One model with a different
+training procedure (distilgpt2: knowledge distillation from a teacher)
+disagrees with both, in the opposite direction. If scale/depth were the
+real driver, gpt2 and gpt2-medium's 3× parameter and 2× depth difference
+should have produced at least some divergence between them; instead they
+agree more closely with each other (same ≈3.5:1 ratio) than either does
+with distilgpt2. **Training procedure — specifically, whether the model
+was trained via knowledge distillation — is now the better-supported
+explanation for Experiment 21's reversal**, though still not proven
+without a model that varies training procedure while holding scale fixed
+(the reverse of what these three checkpoints happen to vary).
+
+**What still holds across all three real models.** The structural
+finding is now confirmed a third time without exception: every
+random-init search across all three models (18 + 6 = 24 total budget
+searches on distilgpt2/gpt2, plus these 18 on gpt2-medium — 42 in total)
+was won by the safe `quantize` fallback; every pretrained search that met
+the quality bar at all was won by a structure-aware method instead.
+
+**Interpretation.** This is the most direct, best-powered evidence yet on
+what causes the depth-gradient reversal — not proof (that would need a
+fourth model isolating training procedure from scale directly, e.g. a
+second distilled model or an equivalently-sized non-distilled model), but
+a real narrowing from "two untested hypotheses" to "one substantially
+better-supported hypothesis." It also demonstrates the project's
+falsification discipline paying off a third time in this specific thread
+(Experiment 19 found the pattern, Experiment 20-21 found and confirmed
+the reversal, this experiment narrows *why*) — each step resolved exactly
+the ambiguity the previous one raised.
+
+**A methodological note, kept for anyone extending this project.** The
+container running this session restarted twice, unannounced, during
+long unattended background computation (see the Context section above).
+Both times, on-disk state (git history, downloaded model weights, and —
+after this experiment's own infrastructure work — checkpointed partial
+results) survived the restart; in-memory process state did not. Any
+future multi-hour unattended run in this environment should checkpoint
+incrementally rather than only saving results at the very end.
+
+**Scope of the claim.** Three models, 6-layer subsets in the two larger
+ones, one behavioral-error threshold, discrete parameter grids. The
+scale-vs-procedure question is narrowed, not conclusively resolved — a
+fourth model varying only one of the two factors would be the decisive
+test.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

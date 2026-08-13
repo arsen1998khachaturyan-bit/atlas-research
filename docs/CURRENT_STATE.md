@@ -292,13 +292,37 @@ on both real models: the structural finding (training unlocks
 structure-aware compression methods entirely, not just better ratios)
 and the overall 1.4×–8× fixed-parameter magnitude range (Experiment 20).
 Two unverified explanations for the reversal — model scale/depth vs.
-distilgpt2's knowledge-distillation training procedure specifically — are
-not yet distinguished; would need a third model with a different
-training recipe. See `docs/RESEARCH_LOG.md` Experiments 18–21 and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (a third pretrained
-model — the clear next step to disentangle scale from training
-procedure — the MLP input-layer question, mechanism checks on a real
-model, or folding all of this into the synthesis artifact).
+distilgpt2's knowledge-distillation training procedure specifically —
+were not yet distinguished as of Experiment 21.
+
+**Experiments 22–23 (gpt2-medium, completed overnight) — narrowed to one
+better-supported hypothesis.** `atlas_nn/stage_c_real/model.py` and the
+budget-search scripts were generalized to any GPT-2-family model.
+gpt2-medium (355M, 24 blocks — same non-distilled training recipe as
+gpt2, but 2× its depth and ~3× its parameters) shows the *same*
+early-block-dominant depth gradient as gpt2, at a strikingly similar
+relative margin (~3.5:1 early:late for both). Two very differently-scaled
+models sharing gpt2's non-distilled training recipe agree with each
+other; the one distilled model (distilgpt2) disagrees with both — a real,
+if not conclusive, argument that training procedure (distillation),
+not model scale, drives the reversal. The single largest number found
+(512× at 5% behavioral error, SVD, on the first block) again matches
+gpt2's pattern, not distilgpt2's. The structural finding (training
+unlocks structure-aware compression methods entirely) has now held
+without exception across 42 total budget searches on 3 models.
+
+**Infrastructure note:** this container restarted unannounced twice
+during the overnight session, killing two multi-hour runs with zero
+partial results saved. Built `atlas_nn/stage_c_real/parallel_budget_search.py`
+(multiprocess, one worker per model instance, ~1.8–4× faster) with
+per-layer checkpointing (survives a restart with at most one layer's
+work lost) — verified correct (identical results to sequential,
+correct resume behavior) before being trusted for the real gpt2-medium
+run. See `docs/RESEARCH_LOG.md` Experiments 18–23 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (a fourth model
+isolating scale from training procedure directly, the MLP input-layer
+question, mechanism checks on a real model, or folding all of this into
+the synthesis artifact).
 
 ### Design constraints adopted for Track B
 
