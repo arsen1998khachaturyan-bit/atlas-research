@@ -649,6 +649,58 @@ compressibility gain, sometimes a penalty, unique among all layer types in
 every architecture tested — remains real, reproducible across many
 experiments, and still unexplained.
 
+> **✓ Update after Experiment 25 (weight-delta rank analysis):** a
+> fourth, structurally different kind of test — not another property of
+> the *final* trained matrix, but of the training *update* itself — found
+> a real, large, cleanly-separated candidate signal. See the new VERIFIED
+> RESULT (partial) below.
+
+---
+
+## VERIFIED RESULT (partial): the input layer's training-induced weight UPDATE is diffuse (near full-rank); the hidden layer's is concentrated (low-rank) — a new, cleanly-separated candidate lead for the input-layer mystery
+
+**Claim.** Measuring not the final trained matrix's rank (Experiment 7)
+but the effective rank of `W_trained − W_random` itself, expressed as a
+fraction of that layer's max possible rank: the input layer's update
+uses 87.7% of its available rank directions (mean over 8 seeds, range
+0.865–0.890) — close to full-rank, diffuse. The hidden layer's update
+uses only 34.9% (range 0.278–0.437) — concentrated in a much smaller
+effective subspace. **The two distributions never overlap across any of
+the 8 seeds tested.** Movement *magnitude* alone (`‖Δ‖/‖W_random‖`) does
+not separate the layers the same way (input: 2.19, hidden: 2.59, output:
+4.23) — it's specifically the *structure* of the change, not its size,
+that differs.
+
+**How verified.** `experiments/run_atlas_nn_stage_b_weight_delta_analysis.py`,
+the exact original Stage B setup (3-Linear 2-XOR MLP, Experiments 3/4/6/7)
+at the project's 8-seed standard. Reproduce with
+`python -m experiments.run_atlas_nn_stage_b_weight_delta_analysis`
+(writes `results/atlas_nn_stage_b_weight_delta_analysis.json`).
+
+**Why this is a genuinely new lead, not a repeat of Experiment 7.**
+Experiment 7 measured the rank of the *final* trained matrix and found a
+weak, inconsistent relationship on the input layer specifically. This
+measures the rank of what training *changed* — a different quantity that
+happens to separate the two layers far more cleanly than the final-matrix
+measurement ever did, on the same architecture and task.
+
+**Labeled "partial" because of open questions this doesn't yet answer.**
+This is a candidate explanation with a large, clean effect size, not a
+mechanistic account — *why* the input layer's training update would be
+diffuse while the hidden layer's is concentrated is not established (one
+unverified, untested story is offered in `docs/RESEARCH_LOG.md`
+Experiment 25). It also has not yet been cross-checked the way
+Experiment 7's original finding was strengthened by Experiments 5–6 (a
+harder task, a capacity/width sweep) — whether delta-rank fraction
+predicts the *magnitude*, not just the direction, of compression gain
+across those conditions is untested.
+
+**Scope of the claim.** One task (2-XOR), one architecture, 8 seeds. The
+output layer's own delta-rank-fraction (0.500, exactly, every seed) is
+flagged as a likely artifact of that layer's degenerate 2-dimensional
+max rank (the same caveat Experiment 7 raised for this layer), not
+included in the headline comparison.
+
 ---
 
 ## OBSERVATION: k-means dictionary fitting is not perfectly reliable at small dictionary sizes

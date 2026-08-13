@@ -2023,3 +2023,110 @@ establish *why* distillation would produce this pattern, only that it
 does, on two independent measures now.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 25 — Back to the MLP input-layer mystery: is the training UPDATE itself low-rank, not just the final matrix?
+
+**Context.** The MLP input-layer question (no post-training compression
+gain, sometimes a penalty, unique among all layer types) has been open
+since Experiment 4, with three specific hypotheses tested and ruled out
+(effective rank of the *trained* matrix — Experiment 7, weak/inconsistent;
+task-irrelevant input noise fraction — Experiments 12/15, cleanly ruled
+out; raw vs. pre-transformed input — Experiment 16, no effect).
+`docs/NEXT_RESEARCH_DECISION.md` had explicitly flagged that resolving it
+"would need a different kind of tool ... not another ablation of the same
+shape" — this experiment is the first attempt at that different tool.
+
+**Hypothesis.** Every prior test examined a property of the *final
+trained* weight matrix. None asked the more basic dynamical question: how
+much does each layer's weight matrix actually *move* during training
+(relative to its own random-init scale), and is that movement itself
+structured (low-rank) or diffuse (near full-rank)? If the input layer's
+training-induced update is diffuse while other layers' updates are
+concentrated in a few directions, that would explain reduced post-training
+compressibility directly — there would be less *low-rank structure in what
+training actually changed*, even if (per Experiment 7) the *final* matrix's
+own rank doesn't cleanly predict it.
+
+**Method.** `experiments/run_atlas_nn_stage_b_weight_delta_analysis.py`.
+The exact original Stage B setup (3-Linear-layer MLP, 32→64→64→2, 2-XOR
+task) used in Experiments 3/4/6/7, 8 seeds (the project's established
+standard). For each layer, in each seed: `Δ = W_trained − W_random`,
+relative weight movement (`‖Δ‖_F / ‖W_random‖_F`), and — the new
+measurement — the effective rank of `Δ` itself, expressed as a fraction
+of that layer's max possible rank (`shannon_effective_rank(Δ) /
+min(shape)`), directly comparable across layers of different shapes.
+`results/atlas_nn_stage_b_weight_delta_analysis.json`.
+
+**Result — a clean, large, fully-separated effect on delta rank
+fraction; no comparable effect on movement magnitude (mean over 8
+seeds):**
+
+| layer | known compression-gain direction | mean relative weight movement | mean delta-rank fraction |
+|---|---|---|---|
+| 0 (input, 64×32) | flat-to-negative | 2.19 | **0.877** |
+| 2 (hidden, 64×64) | positive | 2.59 | **0.349** |
+| 4 (output, 2×64) | positive | 4.23 | 0.500 (degenerate — max_rank=2, see caveat) |
+
+The movement-magnitude column does **not** separate the layers by
+compression-gain direction — layer 0 (no gain) moves *less* than layer 2
+(positive gain), as a naive "changes less ⇒ less structure" story would
+predict, but layer 4 (also positive gain) moves *even more* than layer 2,
+so magnitude alone is not the explanation.
+
+**The delta-rank-fraction column separates them cleanly, with zero
+overlap across all 8 seeds.** Layer 0's per-seed values range
+0.865–0.890; layer 2's range 0.278–0.437 — the two distributions never
+touch. The input layer's training-induced *change* uses 88% of its
+available rank directions — it's close to full-rank, diffuse, unstructured.
+The hidden layer's change uses only 35% — concentrated in a much smaller
+effective subspace. This is exactly the shape of result compression
+methods would predict matters: a diffuse, near-full-rank update leaves
+little exploitable structure for a compression method to find in what
+training actually added; a concentrated, low-rank update does.
+
+**Layer 4's degenerate case, noted not smoothed over.** The output layer
+has `max_rank=2` (a 2×64 matrix), the same edge case Experiment 7 already
+flagged for this layer — "effective rank" over only 2 possible dimensions
+is close to a binary variable, and `delta_rank_fraction=0.500` exactly
+(consistently, every seed) is more likely an artifact of that degenerate
+scale than a real "half of available structure" measurement. The
+headline layer-0-vs-layer-2 comparison, both large matrices, is unaffected
+by this caveat.
+
+**Interpretation.** This is the first candidate explanation for the
+input-layer mystery that shows a large, clean, zero-overlap effect across
+all 8 seeds — a qualitatively different result from every prior attempt
+(Experiment 7's weak/inconsistent rank correlation, Experiments 12/15's
+flat null result, Experiment 16's no-effect result). It reframes the
+question productively: it's not that the input layer's *final* matrix
+fails to show a rank signal (Experiment 7 already found that, and it's
+still true) — it's that what training actually *did* to the input layer
+was diffuse, while what it did to the hidden layer was concentrated. Why
+training would produce a diffuse update specifically for the layer that
+sees raw external input, while producing a concentrated update for
+internal layers, is not established here — a plausible (unverified)
+story is that the input layer must preserve information about every
+task-relevant input coordinate somewhat independently (nothing internal
+to the network can recover a coordinate this layer discards), forcing a
+broader, less compressible correction, while internal layers can route
+information through fewer effective channels because downstream layers
+can adapt around whatever specific subspace they receive. Not tested
+here.
+
+**Falsification note.** This result should itself now be treated the way
+every other promising finding in this project has been: as a hypothesis
+needing its own replication check (e.g. does delta-rank fraction predict
+the *magnitude*, not just the direction, of compression gain across
+harder tasks/widths, the way Experiment 6's capacity-sweep conditions
+did for the final-matrix effective rank in Experiment 7?) before being
+treated as resolved.
+
+**Scope of the claim.** One task (2-XOR), one architecture width/depth,
+8 seeds. A real, well-powered, novel result — not yet cross-checked
+against the harder/wider conditions Experiments 6–7 used to strengthen
+the original effective-rank finding, and not yet checked on the
+Transformer or any real pretrained model.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

@@ -334,11 +334,28 @@ not size — strengthening the case from Experiments 21/23. Labeled
 caveat (random-init effective rank barely varies across seeds, so n=18
 per model is closer to n≈6).
 
-See `docs/RESEARCH_LOG.md` Experiments 18–24 and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (a fourth model
-isolating scale from training procedure directly, the MLP input-layer
-question — now the clear priority given it's cheap and long overdue —
-or folding all of this into the synthesis artifact).
+**Experiment 25 (weight-delta rank analysis) — the first real lead on
+the input-layer mystery in four attempts.** A genuinely new tool per the
+prior standing recommendation: instead of another property of the
+*final* trained matrix (three already ruled out — effective rank, noise
+fraction, raw-vs-processed input), measured the effective rank of the
+training *update* itself (`W_trained − W_random`). Result: the input
+layer's update uses 87.7% of its available rank (diffuse, near
+full-rank, range 0.865–0.890 across 8 seeds); the hidden layer's uses
+only 34.9% (concentrated, low-rank, range 0.278–0.437) — **zero overlap
+across all 8 seeds**. Movement magnitude alone does not separate the
+layers the same way — it's specifically the update's *structure*, not
+its size. Labeled "partial" in `docs/BEST_RESULTS.md`: a real, clean,
+well-powered candidate signal, not yet a tested causal mechanism, and not
+yet cross-checked for whether it predicts gain *magnitude* the way
+Experiment 7's original finding was strengthened by Experiments 5–6.
+
+See `docs/RESEARCH_LOG.md` Experiments 18–25 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (testing whether
+delta-rank fraction predicts gain magnitude across the capacity-sweep
+conditions — the clear next step — a fourth pretrained model isolating
+scale from training procedure, or folding all of this into the synthesis
+artifact).
 
 ### Design constraints adopted for Track B
 
