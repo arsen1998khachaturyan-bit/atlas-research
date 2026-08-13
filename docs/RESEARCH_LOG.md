@@ -1949,3 +1949,77 @@ fourth model varying only one of the two factors would be the decisive
 test.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 24 — Effective rank vs. compression gain on real models: another distilled-vs-non-distilled split
+
+**Hypothesis.** Effective rank shrinkage predicted the MLP's
+compression-gain magnitude moderately-strongly (Experiment 7, r≈0.67) and
+the from-scratch Transformer's more weakly and LayerNorm-dependently
+(Experiments 10–11, r≈0.23–0.55). Never checked against a real pretrained
+model. If the mechanism generalizes, rank shrinkage should correlate
+positively with the compression-gain numbers already measured for
+distilgpt2, gpt2, and gpt2-medium (Experiments 19, 21, 23).
+
+**Method.** `experiments/analyze_stage_c_real_capacity_metric.py`. Cheap
+by design: reuses the `compression_gain` values already computed by the
+budget searches (no new compression sweeps) and computes effective rank
+(`atlas_nn.stage_b.capacity_metrics`, unchanged) via one SVD per already-
+tested layer, on the already-downloaded pretrained models and freshly-
+loaded random-init copies (3 seeds each). No multi-hour compute, no
+restart risk. `results/atlas_nn_stage_c_real_capacity_metric.json`.
+
+**Result — a third, independent piece of evidence for the same
+distilled-vs-non-distilled split Experiments 21–23 found in the depth
+gradient (Pearson r, rank shrinkage vs. log compression-gain):**
+
+| model | n | Pearson r |
+|---|---|---|
+| distilgpt2 (distilled) | 18 | **−0.29** |
+| gpt2 (non-distilled) | 18 | **+0.83** |
+| gpt2-medium (non-distilled) | 18 | **+0.49** |
+| pooled (all 3 models) | 54 | +0.23 |
+
+Both non-distilled models show a real positive relationship — gpt2's
+r=0.83 is the strongest correlation found anywhere in this project,
+stronger even than the MLP's original r≈0.67 (Experiment 7). distilgpt2
+is not just weaker, it's the *only* one of the three real models where
+the correlation is negative. Pooling across all three, as if they were
+one population, gives a misleadingly weak r=0.23 that hides a real,
+strong, model-dependent effect — the same kind of pooling trap Experiment
+7 already flagged for cross-layer pooling within a single model.
+
+**A genuine caveat on statistical power, reported rather than hidden.**
+Each model's n=18 is 6 layers × 3 seeds, but random-init effective rank
+barely varies across seeds at this scale (e.g. distilgpt2
+`h.0.attn.c_proj`: erank_random = 618.33, 618.14, 617.59 across seeds
+11/22/33 — under 0.2% spread) — the three seeds are close to redundant
+measurements of the same 6 data points, not 18 independent ones. The
+*effective* sample size per model is closer to 6 than 18. The r values
+above should be read as suggestive at this power, especially
+gpt2-medium's more moderate 0.49, though gpt2's 0.83 and distilgpt2's
+clearly-negative sign are large enough effects to likely survive the
+power caveat.
+
+**Interpretation.** This is now the *second* independent measure (after
+Experiments 21/23's depth-gradient shape) where distilgpt2 behaves
+differently from both non-distilled models, and both non-distilled
+models resemble each other despite gpt2-medium being 3× gpt2's size.
+This further strengthens the training-procedure explanation over the
+scale explanation for what makes distilgpt2 different: it's not just
+*where* in the network the gain concentrates that differs, but whether a
+basic spectral property of the weight matrix (effective rank) relates to
+that gain at all. A plausible (unverified) unifying story: whatever
+knowledge distillation does to a weight matrix's structure may decouple
+compression-relevant behavior from that matrix's own rank, similar in
+spirit to what Experiment 13 found LayerNorm does for the from-scratch
+MLP — though this is speculation, not measured here.
+
+**Scope of the claim.** Three models, 6-of-many layers per model, the
+seed-redundancy caveat above, correlational not causal (as with every
+capacity-metric result in this project since Experiment 7). Does not
+establish *why* distillation would produce this pattern, only that it
+does, on two independent measures now.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

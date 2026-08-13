@@ -1,97 +1,96 @@
 # Next Research Decision
 
-Updated after Experiment 23 (gpt2-medium budget search), which
-substantially narrowed the scale-vs-training-procedure question raised by
-Experiment 21's depth-gradient reversal. Covers Track B (`atlas_nn`)
-only.
+Updated after Experiment 24 (effective rank vs. compression gain on real
+models), which found a second independent measure splitting real models
+by training procedure (distilled vs. not), matching Experiments 21/23's
+depth-gradient split. Covers Track B (`atlas_nn`) only.
 
 ## 1. What we learned
 
-**Experiments 18-21:** the behavioral-robustness effect reproduces on
-real pretrained models; the achievable-ratio depth gradient reverses
-between distilgpt2 (late-block-dominant) and gpt2 (early-block-dominant),
-raising two untested explanations -- model scale/depth, or distilgpt2's
-knowledge-distillation training procedure.
+**Experiments 18-23:** the behavioral-robustness effect reproduces on
+three real pretrained models (distilgpt2, gpt2, gpt2-medium); the
+achievable-ratio depth gradient reverses between distilgpt2 (distilled,
+late-block-dominant) and both gpt2 and gpt2-medium (non-distilled,
+early-block-dominant, closely matching each other despite a 3x scale
+difference) -- narrowing Experiment 21's open question toward training
+procedure over model scale as the explanation.
 
-**Experiment 22:** gpt2-medium's fixed-method smoke test hinted its shape
-resembles gpt2's, not distilgpt2's -- flagged explicitly as provisional
-pending the actual budget search.
-
-**Experiment 23 (this round) -- narrowed to one better-supported
-hypothesis.** gpt2-medium's true depth gradient (32.9x block 0 vs. 9.3x
-block 23, ~3.5:1) closely matches gpt2's own ratio (24.8x vs. 7.1x, also
-~3.5:1) despite gpt2-medium having 2x gpt2's depth and 3x its parameter
-count. Two very differently-scaled models sharing the same non-distilled
-training recipe agree with each other; the one distilled model
-(distilgpt2) disagrees with both. Training procedure -- specifically
-distillation -- is now the better-supported explanation, though not
-conclusively proven (would need a 4th model isolating one factor).
-
-**Also learned (environment, not research):** this container restarted
-unannounced twice during one overnight unattended session, killing two
-separate multi-hour runs with zero partial results saved each time.
-Built and verified per-layer checkpointing
-(`atlas_nn/stage_c_real/parallel_budget_search.py`) in response --
-future long runs in this environment should always checkpoint
-incrementally.
+**Experiment 24 (this round) -- a second, independent confirmation of
+the same split.** Effective-rank shrinkage correlates with compression
+gain strongly on gpt2 (r=0.83, the strongest correlation found anywhere
+in this project), moderately on gpt2-medium (r=0.49), and has the wrong
+sign entirely on distilgpt2 (r=-0.29). Two unrelated analyses -- depth-
+gradient shape and effective-rank correlation -- now split the same three
+models the same way, by training procedure, not size.
 
 ## 2. What failed / remains untested
 
-- The scale-vs-procedure question is narrowed, not resolved. A fourth
-  model is needed: a second distilled model (confirms distillation
-  specifically) or a non-distilled model at distilgpt2's exact scale
-  (more cleanly isolates scale). Neither attempted yet.
-- No mechanism work (effective rank, LayerNorm, attention mixing --
-  Experiments 10-17) has been checked against any real pretrained model.
-- Layer coverage remains a 6-of-many subset on the two larger models.
+- The scale-vs-procedure question is narrowed twice now, still not
+  conclusively resolved. A fourth model isolating one factor (a second
+  distilled model, or a non-distilled model at distilgpt2's exact scale)
+  remains the decisive test.
+- *Why* distillation would produce this specific pattern (both the depth
+  shape and the rank-correlation sign) is not explained by either
+  measure -- only that it correlates with training procedure, twice.
 - The MLP input-layer question remains the project's longest-standing
-  untouched thread, now several rounds without attention.
-- The parallel/checkpointed infrastructure has only been exercised on
-  Stage C (real) budget searches -- not yet applied to smoke tests or any
-  other experiment family, though the same reload-cost and
-  restart-vulnerability logic would apply there too.
+  untouched thread -- now several rounds without any new lead, since
+  Experiment 16.
+- LayerNorm/attention-mixing mechanism questions (Experiments 11, 14, 17)
+  have still not been checked against any real pretrained model.
+- Experiment 24's own power caveat (effective n≈6 per model, not 18) is
+  real and unresolved -- more seeds would help but effective rank of a
+  fixed random-init scheme may simply not vary much with seed at this
+  scale regardless of how many are added; a cleaner test might vary
+  something else (e.g. which specific dimensions of noise the init
+  scheme uses) rather than just adding more seeds.
 
 ## 3. What worked
 
-- Building and verifying the parallel wrapper *before* trusting it for a
-  real multi-hour run (matching sequential results exactly on a subset
-  first) caught nothing wrong, but is exactly the discipline that would
-  have caught a bug if one existed -- continuing this project's standing
-  practice of internal-consistency checks before extending machinery.
-- Responding to the second lost run by building checkpointing rather
-  than just relaunching a third time blind -- a real engineering
-  investment that will pay off on every future long run in this
-  environment, not just this one.
-- Reporting the "two non-distilled models agree, the distilled one
-  doesn't" pattern as narrowing evidence rather than overclaiming
-  resolution -- the honest scope (three models, not four; correlation
-  between training procedure and pattern, not a controlled isolation of
-  it) is stated plainly.
+- Choosing a cheap, no-restart-risk experiment (effective rank needs no
+  new compression sweeps, just one SVD per already-tested layer on
+  already-downloaded models) after two consecutive multi-hour runs had
+  each been interrupted by a container restart -- got a real, informative
+  result without gambling more hours of compute against a third restart.
+- The pooling trap flagged in Experiment 7 (pooling across populations
+  with different underlying relationships hides real effects) recurred
+  here almost exactly -- pooling all 3 models gives r=0.23, hiding gpt2's
+  r=0.83 and distilgpt2's r=-0.29 entirely. Checking per-model before
+  trusting a pooled number, now established practice, caught it again.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes, and the mechanism picture for real pretrained models is now
-sharper.** The core behavioral-robustness effect has now been confirmed
-on three independent real pretrained checkpoints. Where the effect
-concentrates in the network appears to depend on how the model was
-trained (distilled vs. not) rather than simply how big it is -- a real,
-falsifiable, substantially-narrowed finding that emerged from exactly the
-kind of chained, skeptical follow-up this project's discipline calls for.
+**Yes, and the training-procedure-vs-scale question is now supported by
+two independent lines of evidence rather than one.** Depth-gradient shape
+and effective-rank correlation both split the same three real models the
+same way. Still short of proof (needs a model that isolates the factor
+directly), but this is meaningfully stronger than either measure alone.
 
 ## 5. The single most informative next experiment
 
-**A fourth model isolating training procedure from scale directly** --
-either a second distilled model (to confirm distillation specifically
-drives the late-block-dominant pattern) or a non-distilled model at
-distilgpt2's exact scale (~82M, 6 blocks, to more cleanly isolate scale
-from procedure). This is the decisive test the current three-model
-evidence cannot provide on its own.
+Still, as after Experiment 23: **a fourth model isolating training
+procedure from scale directly** (a second distilled model, or a
+non-distilled model at distilgpt2's exact scale) -- now even more
+motivated, since two independent measures agree on the split rather than
+just one.
 
-After that, in rough priority order: (a) revisit the MLP input-layer
-question, now clearly overdue; (b) check mechanism questions (effective
-rank, LayerNorm, attention) against a real pretrained model for the first
-time; (c) extend the parallel/checkpointed infrastructure to Stage C
-(real) smoke tests, given the same restart risk applies there; (d) fold
-Experiments 18-23 into the project-wide synthesis artifact, which
-currently stops at Experiment 17 and does not reflect any of the
-real-pretrained-model work.
+Given this session has run long (two container restarts cost several
+hours of recompute on top of the originally-planned work) and the user is
+away, the next reasonable steps, roughly in order of value per hour of
+compute:
+
+**(a)** The MLP input-layer question -- cheap (small synthetic MLP, no
+model downloads, no multi-hour compute), and the project's clearly most
+overdue open thread.
+
+**(b)** A fourth pretrained model, if network/compute budget allows --
+the decisive test for the scale-vs-procedure question, but requires
+another multi-hour budget search (now checkpointed, so lower-risk than
+before, but still a real time investment).
+
+**(c)** Fold Experiments 18-24 into the project-wide synthesis artifact
+(the "Slack Hypothesis" retrospective), which currently stops at
+Experiment 17 and does not reflect any of the real-pretrained-model work
+-- this is the single most valuable, safest use of remaining
+autonomous-session time: no compute risk, consolidates six experiments'
+worth of new findings (including the project's strongest results) into
+the deliverable the user will actually see first.

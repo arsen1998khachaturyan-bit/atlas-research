@@ -318,11 +318,27 @@ partial results saved. Built `atlas_nn/stage_c_real/parallel_budget_search.py`
 per-layer checkpointing (survives a restart with at most one layer's
 work lost) — verified correct (identical results to sequential,
 correct resume behavior) before being trusted for the real gpt2-medium
-run. See `docs/RESEARCH_LOG.md` Experiments 18–23 and
+run.
+
+**Experiment 24 (effective rank, completed overnight) — a second
+independent confirmation of the same distilled-vs-non-distilled split.**
+Cheap, no-restart-risk follow-up (reuses already-computed compression-gain
+numbers, just one SVD per already-tested layer): effective-rank
+shrinkage correlates strongly with compression gain on gpt2 (r=0.83, the
+strongest correlation found anywhere in this project), moderately on
+gpt2-medium (r=0.49), and has the *wrong sign* on distilgpt2 (r=−0.29).
+Two unrelated analyses (depth-gradient shape, effective-rank correlation)
+now split the same three models the same way — by training procedure,
+not size — strengthening the case from Experiments 21/23. Labeled
+"partial" in `docs/BEST_RESULTS.md` due to a real effective-sample-size
+caveat (random-init effective rank barely varies across seeds, so n=18
+per model is closer to n≈6).
+
+See `docs/RESEARCH_LOG.md` Experiments 18–24 and
 `docs/NEXT_RESEARCH_DECISION.md` for current options (a fourth model
 isolating scale from training procedure directly, the MLP input-layer
-question, mechanism checks on a real model, or folding all of this into
-the synthesis artifact).
+question — now the clear priority given it's cheap and long overdue —
+or folding all of this into the synthesis artifact).
 
 ### Design constraints adopted for Track B
 

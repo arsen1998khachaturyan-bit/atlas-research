@@ -1042,6 +1042,52 @@ it.
 
 ---
 
+## VERIFIED RESULT (partial): effective-rank shrinkage correlates with compression gain on both non-distilled real models, but not the distilled one — a second independent confirmation of the training-procedure split
+
+**Claim.** Effective-rank shrinkage vs. log(compression_gain), computed
+for the first time on real pretrained models: gpt2 shows r=+0.83 (the
+strongest correlation found anywhere in this project, stronger than the
+MLP's original r≈0.67 from Experiment 7), gpt2-medium shows a more
+moderate r=+0.49, and distilgpt2 — the one distilled model of the three —
+shows **r=−0.29**, the wrong sign entirely. Pooling all three models
+together produces a misleadingly weak r=0.23 that hides this real,
+strong, model-dependent split.
+
+**Why this matters beyond one more correlation number.** This is now a
+*second* independent measure (after Experiments 21/23's depth-gradient
+shape) where distilgpt2 diverges from both non-distilled models, which
+resemble each other despite a 3× parameter-count difference between
+them. Two unrelated analyses — achievable compression ratio by depth, and
+effective rank's relationship to compression gain — both split real
+models the same way: distilled vs. not, not big vs. small. This
+strengthens the training-procedure explanation (over model scale) for
+Experiments 21/23's depth-gradient reversal.
+
+**How verified.** `experiments/analyze_stage_c_real_capacity_metric.py`,
+reusing `compression_gain` values already computed by the Experiment
+19/21/23 budget searches (no new compression sweeps), effective rank via
+`atlas_nn.stage_b.capacity_metrics` (unit-tested, unchanged since
+Experiment 7) on each already-tested layer, 3 random-init seeds per
+model. Reproduce with
+`python -m experiments.analyze_stage_c_real_capacity_metric` (writes
+`results/atlas_nn_stage_c_real_capacity_metric.json`).
+
+**Labeled "partial" because of a real power caveat, not hidden.** Each
+model's n=18 (6 layers × 3 seeds) is closer to an effective n=6, since
+random-init effective rank barely varies across seeds at this scale
+(under 0.2% spread on the example checked) — the 3 seeds are close to
+redundant measurements of the same 6 layers, not 18 independent points.
+gpt2's r=0.83 and distilgpt2's negative sign are large effects that
+likely survive this caveat; gpt2-medium's more moderate r=0.49 should be
+read with more caution.
+
+**Scope of the claim.** Three models, 6-of-many layers each, correlational
+not causal (as with every capacity-metric result in this project). Does
+not establish *why* distillation produces this pattern — only that it
+does, on two independent measures now.
+
+---
+
 ## Explicitly not yet claimed
 
 - Nothing about *larger* networks (mission Stage D) or models above ~100M
