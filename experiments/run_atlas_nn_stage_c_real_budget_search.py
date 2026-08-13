@@ -41,7 +41,12 @@ BUDGET_SEARCH_SUFFIXES = ("attn.c_proj", "mlp.c_fc", "mlp.c_proj")
 # distilgpt2 (6 blocks) was the original target; per-model overrides let a
 # second model (e.g. gpt2, 12 blocks) pick its own first/last block pair
 # instead of reusing distilgpt2's block indices verbatim.
-BUDGET_SEARCH_BLOCKS_OVERRIDE = {"distilgpt2": (0, 5), "gpt2": (0, 11), "gpt2-medium": (0, 23)}
+BUDGET_SEARCH_BLOCKS_OVERRIDE = {
+    "distilgpt2": (0, 5),
+    "gpt2": (0, 11),
+    "gpt2-medium": (0, 23),
+    "microsoft/DialoGPT-small": (0, 11),
+}
 
 
 def budget_search_layer_names(model_name: str = "distilgpt2") -> list[str]:
