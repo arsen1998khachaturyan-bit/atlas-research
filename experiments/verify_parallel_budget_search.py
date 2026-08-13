@@ -16,6 +16,7 @@ os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
+import shutil  # noqa: E402
 import time  # noqa: E402
 
 from atlas_nn.stage_b.budget_search import run_budget_search  # noqa: E402
@@ -36,6 +37,7 @@ MODEL_NAME = "distilgpt2"
 CHECK_LAYERS = ["transformer.h.0.attn.c_proj", "transformer.h.5.mlp.c_proj"]
 CHECK_SEEDS = (11,)
 QUALITY_THRESHOLD = 0.05
+CHECKPOINT_DIR = "results/.budget_search_checkpoints_verify"
 
 
 def run_sequential() -> list[dict]:
@@ -80,10 +82,12 @@ def main() -> None:
     seq_seconds = time.time() - t0
     print(f"sequential done in {seq_seconds:.1f}s", flush=True)
 
-    print("running parallel...", flush=True)
+    shutil.rmtree(CHECKPOINT_DIR, ignore_errors=True)
+    print("running parallel (fresh checkpoint dir)...", flush=True)
     t0 = time.time()
     par_results = run_budget_search_parallel(
         MODEL_NAME, CHECK_LAYERS, CHECK_SEEDS, QUALITY_THRESHOLD,
+        checkpoint_dir=CHECKPOINT_DIR,
     )
     par_seconds = time.time() - t0
     print(f"parallel done in {par_seconds:.1f}s", flush=True)
@@ -107,6 +111,31 @@ def main() -> None:
 
     print(f"MATCH: all {len(seq_by_key)} searches identical between sequential and parallel.", flush=True)
     print(f"speedup: {seq_seconds / par_seconds:.2f}x ({seq_seconds:.1f}s -> {par_seconds:.1f}s)", flush=True)
+
+    print("checking resume: rerunning against the same (now-populated) checkpoint dir...", flush=True)
+    t0 = time.time()
+    resumed_results = run_budget_search_parallel(
+        MODEL_NAME, CHECK_LAYERS, CHECK_SEEDS, QUALITY_THRESHOLD,
+        checkpoint_dir=CHECKPOINT_DIR,
+    )
+    resume_seconds = time.time() - t0
+    resumed_by_key = {key(s): s for s in resumed_results}
+    resume_mismatches = [
+        k for k in par_by_key
+        if par_by_key[k]["overall_best_ratio"] != resumed_by_key[k]["overall_best_ratio"]
+        or par_by_key[k]["overall_best_family"] != resumed_by_key[k]["overall_best_family"]
+    ]
+    if resume_mismatches:
+        print(f"RESUME MISMATCH on: {resume_mismatches}", flush=True)
+        raise SystemExit(1)
+    if resume_seconds > par_seconds / 3:
+        print(
+            f"WARNING: resumed run took {resume_seconds:.1f}s, not much faster than the "
+            f"original {par_seconds:.1f}s -- checkpoints may not be getting skipped correctly.",
+            flush=True,
+        )
+    print(f"RESUME OK: identical results, {resume_seconds:.1f}s (checkpoints correctly skipped recomputation).", flush=True)
+    shutil.rmtree(CHECKPOINT_DIR, ignore_errors=True)
 
 
 if __name__ == "__main__":
