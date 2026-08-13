@@ -1748,3 +1748,99 @@ another distilled model) to distinguish from the scale/depth hypothesis
 (a).
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 22 — gpt2-medium smoke test: a third model, testing scale within the non-distilled family
+
+**Context.** Working autonomously overnight per the user's explicit
+request. Also built and verified (see the commit immediately before this
+one) a multiprocess wrapper around `run_budget_search`
+(`atlas_nn/stage_c_real/parallel_budget_search.py`), needed because
+gpt2-medium's larger matrices make a full budget search too slow
+sequentially on this container's 4 CPU cores. A correctness check
+(`experiments/verify_parallel_budget_search.py`) confirmed the parallel
+version produces byte-identical results to the sequential one on a
+distilgpt2 subset (1.80× speedup with only 2 of 4 cores exercised).
+
+**Hypothesis.** Experiment 21 found gpt2's depth gradient reversed
+relative to distilgpt2's, with two candidate explanations: (a) model
+scale/depth, or (b) distilgpt2's knowledge-distillation training
+procedure specifically. `gpt2-medium` (355M parameters, 24 blocks, 1024-
+dim — same non-distilled OpenAI training recipe as `gpt2`, but much
+larger) tests whether scaling up *within the non-distilled family*
+preserves gpt2's early-block-dominant pattern (supporting hypothesis b)
+or diverges yet again (supporting hypothesis a, i.e. that scale/depth
+itself is what matters, not distillation specifically).
+
+**Method.** `experiments/run_atlas_nn_stage_c_real_smoke_gpt2_medium.py`,
+identical smoke-test protocol to Experiments 18/20 (7 fixed-parameter
+methods, 12 tested Conv1D layers — blocks 0/12/23 of 24 × 4 sublayer
+types — pretrained vs. 3 untrained random-init seeds, 336 rows). This run
+was interrupted once by a container restart (killing an in-progress run
+at ~89% completion with no partial results saved) and rerun from scratch
+using the locally-cached model weights (no re-download needed).
+`results/atlas_nn_stage_c_real_smoke_gpt2_medium.json`.
+
+**Result 1 — the magnitude generalizes a third time, to a third model, at
+the largest range yet (mean rel_logit_error, pooled over 12 layers/seeds):**
+
+| method | pretrained | random-init | gain | gpt2 (Exp. 20) | distilgpt2 (Exp. 18) |
+|---|---|---|---|---|---|
+| atlas_block_dict16_res4bit | 0.004 | 0.035 | **9.5×** | 6.8× | 6.8× |
+| prune_50pct | 0.017 | 0.108 | **6.4×** | 8.0× | 6.2× |
+| quantize_4bit_block64 | 0.005 | 0.036 | **7.6×** | 5.3× | 7.6× |
+| vector_codebook_k16 | 0.231 | 0.315 | 1.4× | 3.3× | 4.4× |
+| svd_rank4 | 0.254 | 0.413 | 1.6× | 2.6× | 4.9× |
+| quantize_8bit_pertensor | 0.003 | 0.005 | 1.7× | 1.4× | 1.2× |
+
+Every gain falls in the same broad band found on the two smaller models —
+three real pretrained checkpoints now agree on the *overall* magnitude of
+the behavioral-robustness effect, even though (per Experiments 20–21)
+they disagree sharply on *where in the network* it concentrates.
+Random-init next-token accuracy was again exactly 0.0% in all 3 seeds
+(expected under chance given this model's shared GPT-2 vocab and eval
+set — see Experiment 18's identical result and its probability
+calculation).
+
+**Result 2 — the depth pattern, once again, depends entirely on which
+fixed method is probing it (mean rel_logit_error by block):**
+
+| block | svd_rank4 gain | atlas_block_dict gain |
+|---|---|---|
+| 0 (early) | 1.56× | **25.0×** |
+| 12 (middle) | **4.60×** | 4.4× |
+| 23 (late) | 1.00× (no measurable gain at all) | 3.2× |
+
+`svd_rank4` peaks in the middle — the same shape gpt2 showed under this
+exact method (Experiment 20: block 6 of 12 was the peak there too).
+`atlas_block_dict` is monotonically *decreasing* with depth here, the
+same *qualitative shape* gpt2 showed under this method (Experiment 20:
+12.3×→5.3×→2.9×) even though the *absolute* numbers differ. Both fixed
+methods here point toward early/middle blocks mattering more than the
+last block — consistent in *direction* with gpt2's fixed-method readings,
+not with distilgpt2's. This is suggestive but, per Experiments 19–21's
+established lesson, **not yet trustworthy as a depth-gradient claim** —
+only a full budget search (Experiment 23, next) settles this the way it
+did for distilgpt2 and gpt2.
+
+**Interpretation, held provisionally.** Every fixed-method reading so far
+(smoke tests on all 3 models) has pointed one direction and every budget
+search so far has told a *different* story once each layer could pick
+its own best method (Experiment 19 vs. 18; presumably Experiment 21 vs.
+20, though that comparison was less direct). So this experiment's
+depth-pattern hint (gpt2-medium's fixed-method readings resembling
+gpt2's, not distilgpt2's) should not be treated as evidence for or
+against either scale or training-procedure hypothesis until the actual
+budget search is run and produces the same kind of achievable-ratio
+picture Experiments 19 and 21 did for the other two models.
+
+**Scope of the claim.** Same limitations as Experiments 18/20 (12-of-many
+layer subset, fixed compression parameters). The magnitude-generalization
+result (Result 1) is solid; the depth-pattern discussion (Result 2) is
+explicitly flagged as provisional pending the budget search.
+
+**Next experiment.** Run the budget search on gpt2-medium (using the new
+parallel wrapper, needed given this model's larger per-layer compute
+cost) to get the first trustworthy depth-gradient reading for a third
+model.

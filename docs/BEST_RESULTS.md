@@ -908,6 +908,15 @@ distilgpt2's (rising toward the last block) remains untested.
 
 > **⚠ Update after Experiment 21 (gpt2 budget search):** it does not
 > match — it's reversed. See the new VERIFIED RESULT below.
+>
+> **✓ Update after Experiment 22 (gpt2-medium smoke test):** the
+> magnitude generalization now holds on a *third* real model —
+> gpt2-medium (355M, 24 blocks) shows gains of 1.4×–9.5×, the same broad
+> band as distilgpt2 (1.2×–7.6×) and gpt2 (1.4×–8.0×). Its fixed-method
+> depth readings resemble gpt2's shape (early/middle blocks favored under
+> both `svd_rank4` and `atlas_block_dict`) rather than distilgpt2's — but
+> per this entry's own lesson, that is not yet trustworthy without a
+> budget search, which had not been run on gpt2-medium as of this update.
 
 ---
 
