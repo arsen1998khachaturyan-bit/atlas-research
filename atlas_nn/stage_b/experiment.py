@@ -77,8 +77,14 @@ def run_layer_experiment(
     finally:
         load_snapshot(model, original_state)
 
-    logits_orig = baseline_eval["logits"]
-    logits_sub = substituted_eval["logits"]
+    # float64, not the logits' native float32: some real pretrained models
+    # (e.g. microsoft/DialoGPT-small) produce raw logits large enough that
+    # a naive sum-of-squares norm overflows float32 (silently returning NaN)
+    # well within its representable range in float64. This changes no
+    # result on any model whose logits don't approach that scale -- it only
+    # avoids a precision artifact, not a change in what's measured.
+    logits_orig = baseline_eval["logits"].astype(np.float64)
+    logits_sub = substituted_eval["logits"].astype(np.float64)
     logit_diff_norm = float(np.linalg.norm(logits_sub - logits_orig))
     logit_orig_norm = float(np.linalg.norm(logits_orig))
     relative_logit_error = logit_diff_norm / logit_orig_norm if logit_orig_norm > 0 else logit_diff_norm
