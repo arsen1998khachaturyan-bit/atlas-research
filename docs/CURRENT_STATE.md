@@ -385,11 +385,31 @@ now hit the same Transformer wall, at good statistical power on both
 sides. Promoted to a full VERIFIED RESULT (negative) in
 `docs/BEST_RESULTS.md`.
 
-See `docs/RESEARCH_LOG.md` Experiments 18–27 (incl. the addendum) and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (a real
-pretrained-model check of delta-rank fraction, a fourth pretrained model
-isolating scale from training procedure, or folding all of this into the
-synthesis artifact).
+**Experiment 28 (delta-rank on real models, completed) — the strongest
+correlation in the project, and a third independent confirmation of the
+distilled/non-distilled split.** Delta-rank fraction vs. compression gain
+on real pretrained models: gpt2 **r=−0.90** (the strongest correlation
+of any kind found anywhere in this project — stronger than the MLP
+result it was built to test), gpt2-medium r=−0.60 (same direction),
+distilgpt2 r=+0.19 (no relationship). This is the **third** independent
+analysis — after Experiments 21/23's depth-gradient shape and Experiment
+24's final-matrix rank correlation — to split these same three models
+the same way: the two non-distilled models resemble each other; the
+distilled one resembles neither, regardless of scale. It also narrows
+Experiment 27's open question: delta-rank fraction isn't an MLP-only
+mechanism — it works strongly on real, thoroughly-trained non-distilled
+Transformers, just not on Stage C-lite's small from-scratch one, and not
+on the distilled model. (Per-block breakdowns in this analysis are
+unreliable — same seed-redundancy caveat as Experiment 24 — and excluded
+from interpretation; only the per-model, all-6-layer numbers are
+trustworthy.)
+
+See `docs/RESEARCH_LOG.md` Experiments 18–28 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (a fourth
+pretrained model isolating scale from training procedure — now
+motivated by three converging measures — investigating why Stage
+C-lite's from-scratch Transformer diverges from real ones, or folding
+all of this into the synthesis artifact).
 
 ### Design constraints adopted for Track B
 

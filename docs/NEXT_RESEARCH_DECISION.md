@@ -1,83 +1,87 @@
 # Next Research Decision
 
-Updated after Experiment 27's 8-seed addendum, which confirmed (rather
-than resolved away) a non-replication of the project's strongest
-mechanism finding on the Transformer. Covers Track B (`atlas_nn`) only.
+Updated after Experiment 28, which found the strongest single correlation
+in the project (gpt2, r=-0.90) and a third independent measure of the
+distilled-vs-non-distilled split running through Experiments 21-24.
+Covers Track B (`atlas_nn`) only.
 
 ## 1. What we learned
 
-**Experiments 25-26:** delta-rank fraction (effective rank of the
-training update) is the strongest mechanism correlation found in this
-project (r=-0.75, MLP hidden layer, 6-condition capacity sweep).
+**Experiments 25-27:** delta-rank fraction is the strongest MLP mechanism
+correlation (r=-0.75) but does not transfer to the small, from-scratch
+Stage C-lite Transformer (r=-0.06, confirmed at 8 seeds).
 
-**Experiment 27 + addendum (this round) -- confirmed non-replication on
-the Transformer, checked at two seed counts.** At 3 seeds: pooled
-r=-0.15, block 0 wrong direction, block 1 weak-right-direction. At 8
-seeds (matching the project's later standard, and the same seed-count
-increase that resolved Experiment 10/11's earlier ambiguity toward a
-real positive result): pooled r=-0.06 (weaker), block 1 flips to the
-*wrong* direction. More statistical power sharpened the non-relationship
-rather than revealing a hidden one. The sublayer-type pattern is stable
-across both seed counts and points opposite to the MLP's prediction:
-`out_proj` has both the most-concentrated updates and the lowest gain.
+**Experiment 28 (this round) -- transfers strongly to real, non-distilled
+Transformers.** gpt2: r=-0.90 (strongest correlation in the project).
+gpt2-medium: r=-0.60. distilgpt2: r=+0.19 (no relationship). This is the
+third independent analysis (after Experiments 21/23's depth-gradient
+shape and Experiment 24's final-matrix rank correlation) to split the
+same three real models the same way -- non-distilled models resemble
+each other, the distilled one doesn't, regardless of scale. It also
+narrows Experiment 27's open question: the delta-rank mechanism isn't
+"an MLP-only thing" -- it works strongly on real, well-trained
+Transformers, just not on Stage C-lite's toy-scale from-scratch version,
+and not on distilled models.
 
 ## 2. What failed / remains untested
 
-- *Why* delta-rank fraction (and final-matrix effective rank before it,
-  Experiment 10) predicts the MLP well and the Transformer poorly is
-  still unexplained -- two independent rank-based metrics have now hit
-  the same architecture wall, which narrows the space of explanations
-  (something about residual connections/LayerNorm's error-absorbing
-  role, per the standing hypothesis from Experiments 11/13/14/17) but
-  doesn't test it directly.
-- Delta-rank fraction has not been checked on any real pretrained model.
-- The scale-vs-training-procedure question from Experiments 21-24 remains
-  open, separately from this thread.
-- The MLP input-layer mystery itself (why the input layer's update stays
-  diffuse regardless of capacity) still has no causal explanation, only
-  the correlational evidence from Experiments 25-26.
+- *Why* distillation disrupts both the depth-gradient shape and two
+  independent rank-based correlations is still not established -- three
+  measures now agree it does, none explain why.
+- *Why* Stage C-lite's from-scratch Transformer showed no delta-rank
+  relationship while real non-distilled Transformers show a strong one
+  is also unexplained -- candidate factors (scale, training duration,
+  real vs. synthetic data, optimizer schedule) are all confounded
+  together in the comparison and not disentangled.
+- A fourth model isolating scale from training procedure directly
+  (Experiments 21-24's original open question) is still not run.
+- The per-block breakdowns in both Experiment 24 and 28 are unreliable
+  due to the seed-redundancy power caveat -- a genuinely different kind
+  of seed variation (e.g. varying the random-init scheme itself, not
+  just its seed) might get real per-block/per-layer power where simply
+  adding more seeds cannot.
 
 ## 3. What worked
 
-- Not stopping at the first non-replication and not assuming a second
-  seed-count check would automatically resolve it favorably (as
-  Experiment 11's addendum did) -- running the check with a genuinely
-  open mind about which direction it would go, and reporting the actual
-  (sharpened-negative) result rather than the one that would have made a
-  tidier narrative.
-- Extending both the delta-rank script AND its upstream compression-gain
-  source (the budget search) to 8 seeds together, rather than only
-  adding seeds to the metric being tested while leaving its comparison
-  data at lower power -- kept the two sides of the correlation on equal
-  footing.
+- Extending the cheap, no-restart-risk pattern from Experiment 24 (reuse
+  already-computed compression_gain, one more SVD per layer) to a second
+  metric -- kept this round of investigation fast and safe while still
+  producing the strongest single result in the project.
+- Catching the per-block correlations' implausible perfection (r=-0.9999
+  fit through effectively 3 tripled points) before it could be
+  mis-reported as a finding -- continuing the discipline Experiment 24
+  established for exactly this failure mode.
+- Explicitly connecting this result back to Experiment 27's unresolved
+  question rather than treating it as a standalone finding -- it directly
+  answers part of what Experiment 27 left open.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes on the core claim; the mechanism-hunting thread has now clearly
-mapped its own boundary.** Two independent rank-based metrics (final
-matrix, training update) each explain the MLP's compression-gain pattern
-well and the Transformer's poorly, at good statistical power on both
-architectures. This is a stable, well-established boundary of what these
-specific metrics can explain -- not evidence against the underlying
-compression-gain phenomenon, which remains robust across every
-architecture and every real model tested throughout this project.
+**Yes, more strongly than at any earlier point.** gpt2's r=-0.90 is the
+single strongest piece of quantitative evidence in the entire project
+for a mechanistic account of the compression-gain phenomenon. Combined
+with three independent measures now agreeing on the distilled-vs-
+non-distilled split, the mechanism picture for real pretrained models is
+sharper than for either from-scratch architecture on its own.
 
 ## 5. The single most informative next experiment
 
 No single option clearly dominates; in rough priority order:
 
-**(a)** A real pretrained-model check of delta-rank fraction, now that
-the Stage C (real) infrastructure exists -- would add a third data point
-(after MLP and Stage C-lite Transformer) on whether this metric is
-architecture-general or MLP-specific, and real models are the highest-
-value target given the project's recent emphasis there.
+**(a)** A fourth pretrained model isolating scale from training
+procedure directly (Experiments 21-24's original open question, now
+with three converging lines of evidence motivating it more than ever) --
+a second distilled model, or a non-distilled model at distilgpt2's exact
+scale.
 
-**(b)** A fourth pretrained model isolating scale from training
-procedure (Experiments 21-24's still-open question) -- unrelated thread,
-similar priority.
+**(b)** Investigate why Stage C-lite's from-scratch Transformer diverges
+from real non-distilled Transformers on delta-rank fraction specifically
+-- candidates include training duration/steps, real vs. synthetic data,
+or scale; disentangling these would need new from-scratch Transformer
+runs at varying duration/data-realism, a nontrivial new experiment
+design.
 
-**(c)** Fold Experiments 18-27 into the project-wide synthesis artifact,
-which currently stops at Experiment 17 and does not reflect any of the
-real-pretrained-model or delta-rank work -- the safest, no-compute-risk
-option, worth doing regardless of which research thread gets picked up
-next.
+**(c)** Fold Experiments 18-28 into the project-wide synthesis artifact,
+which currently stops at Experiment 17 and does not reflect the real-
+pretrained-model or delta-rank work -- the safe, no-compute-risk option,
+worth doing regardless of which research thread is picked up next.

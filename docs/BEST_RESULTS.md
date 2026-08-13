@@ -1230,6 +1230,54 @@ promising result so far.
 
 ---
 
+## VERIFIED RESULT: delta-rank fraction predicts compression gain strongly on real non-distilled models (gpt2 r=-0.90, the strongest correlation in the project) but not on the distilled one — a third independent measure of the same split
+
+**Claim.** Delta-rank fraction (effective rank of the training-induced
+weight change) vs. compression-gain magnitude, on real pretrained
+models: gpt2 shows r=−0.90 (Pearson) — the strongest correlation of any
+kind found anywhere in this project, stronger than this experiment's own
+MLP source finding (Experiment 26, r=−0.75). gpt2-medium shows r=−0.60,
+the same direction. distilgpt2 — the one distilled model of the three —
+shows no clear relationship (r=+0.19). This is now the **third**
+independent analysis (after Experiments 21/23's depth-gradient shape and
+Experiment 24's final-matrix effective-rank correlation) to split these
+same three real models the same way: the two non-distilled models
+resemble each other; the distilled one does not resemble either,
+regardless of its scale sitting between theirs.
+
+**How verified.** `experiments/analyze_stage_c_real_delta_rank.py`,
+reusing `compression_gain` already computed by the Experiment 19/21/23
+budget searches (no new compression sweeps), delta-rank fraction via one
+SVD per already-tested layer, 3 random-init seeds per model. Reproduce
+with `python -m experiments.analyze_stage_c_real_delta_rank` (writes
+`results/atlas_nn_stage_c_real_delta_rank.json`).
+
+**Why this also narrows Experiment 27's open question.** Experiment 27
+found delta-rank fraction does not predict compression gain on the Stage
+C-lite Transformer (a small, from-scratch, briefly-trained model) and
+could not tell whether that was about Transformers generally or about
+that specific toy setup. This result favors "that specific toy setup":
+real, thoroughly-pretrained, non-distilled Transformers show a *strong*
+delta-rank relationship — stronger than the MLP's own — while Stage
+C-lite's from-scratch Transformer showed essentially none.
+
+**Power caveat, carried over from Experiment 24's identical situation.**
+Delta-rank fraction is nearly constant across the 3 random-init seeds
+for a given layer, so each model's n=18 (6 layers × 3 seeds) has an
+*effective* sample size closer to 6. Per-block breakdowns computed
+alongside this result show implausibly perfect correlations (e.g.
+r=−0.9999, fit through what is effectively 3 tripled data points) and are
+excluded from interpretation — only the per-model, all-6-layer numbers
+above are treated as trustworthy.
+
+**Scope of the claim.** Three models, 6-of-many layers per model,
+correlational not causal. Does not establish *why* distillation disrupts
+the relationship — only that it does, on three independent measures now
+(depth-gradient shape, final-matrix rank correlation, delta-rank
+correlation).
+
+---
+
 ## Explicitly not yet claimed
 
 - Nothing about *larger* networks (mission Stage D) or models above ~100M

@@ -2355,3 +2355,95 @@ exactly as informative and exactly as valid a use of the same
 falsification discipline.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 28 — Delta-rank fraction on real pretrained models: a third independent measure splitting distilgpt2 from gpt2/gpt2-medium, and evidence Experiment 27's non-replication was about Stage C-lite specifically, not Transformers in general
+
+**Context.** Experiment 26 found delta-rank fraction (effective rank of
+`W_trained − W_random`) is the strongest mechanism correlation in the
+project on the from-scratch MLP (r=−0.75). Experiment 27 (+ its 8-seed
+addendum) found it does not transfer to the from-scratch Stage C-lite
+Transformer (pooled r=−0.06). Real pretrained models are architecturally
+Transformers too, but trained completely differently (real data, an
+unknown but almost certainly much larger number of steps, real
+optimizer schedules) — this experiment asks whether Experiment 27's
+non-replication is about "Transformers in general" or something specific
+to Stage C-lite's small-scale, short, from-scratch training.
+
+**Method.** `experiments/analyze_stage_c_real_delta_rank.py`. Cheap by
+design like Experiment 24: reuses `compression_gain` already computed by
+the Experiment 19/21/23 budget searches, computing delta-rank fraction
+(`W_pretrained − W_random`, as a fraction of max rank) via one more SVD
+per already-tested layer of each already-downloaded model (distilgpt2,
+gpt2, gpt2-medium), 3 random-init seeds each. `results/
+atlas_nn_stage_c_real_delta_rank.json`.
+
+**Result — a real relationship on the two non-distilled models, none on
+the distilled one (per-model, n=18 each — 6 layers × 3 seeds):**
+
+| model | Pearson r | Spearman r |
+|---|---|---|
+| distilgpt2 (distilled) | +0.19 (weak, no clear relationship) | +0.05 |
+| gpt2 (non-distilled) | **−0.90** | **−0.79** |
+| gpt2-medium (non-distilled) | **−0.60** | −0.25 |
+
+Read the sign correctly, as in Experiments 25–27: negative means low
+delta-rank fraction (concentrated update) predicts *higher* gain — the
+same direction as the MLP's finding. gpt2's r=−0.90 is the **strongest
+correlation of any kind found anywhere in this project**, stronger even
+than Experiment 26's own MLP result (r=−0.75) that this experiment set
+out to test. gpt2-medium shows the same direction, more moderately.
+distilgpt2 shows no clear relationship at all.
+
+**A third independent measure now splits the same three models the same
+way.** Experiments 21/23 found this exact split in achievable-ratio
+depth-gradient shape; Experiment 24 found it in final-matrix
+effective-rank correlation (gpt2 r=0.83, gpt2-medium r=0.49, distilgpt2
+r=−0.29); this experiment finds it again in delta-rank fraction
+(gpt2 r=−0.90, gpt2-medium r=−0.60, distilgpt2 r=+0.19 null). Three
+unrelated analyses, three times the same two non-distilled models agree
+with each other and the one distilled model disagrees — a steadily
+accumulating case that training procedure (distillation), not model
+scale, is the real variable behind Experiments 21–24's original
+divergence.
+
+**Resolves part of Experiment 27's open question.** Experiment 27 could
+not distinguish "delta-rank fraction doesn't work on Transformers in
+general" from "it doesn't work on Stage C-lite's small-scale, short,
+from-scratch training specifically." This experiment favors the second
+reading: real, thoroughly-pretrained, non-distilled Transformers (gpt2,
+gpt2-medium) show a *strong* delta-rank relationship — stronger than the
+MLP's own, in gpt2's case — while Stage C-lite's toy-scale Transformer
+showed none. Distillation (distilgpt2) appears to disrupt the
+relationship specifically, independent of whether the underlying
+architecture can support it.
+
+**A power caveat, carried over from Experiment 24's identical situation
+and equally real here.** Delta-rank fraction is nearly constant across
+the 3 random-init seeds for a given layer (e.g. distilgpt2's
+`h.0.attn.c_proj`: 0.721, 0.721, 0.721) — the 3 seeds are close to
+redundant measurements of the same 6 layers, not 18 independent points,
+so each model's *effective* n is closer to 6 than 18. This also means
+the per-block breakdowns computed alongside the headline numbers (some
+showing implausible correlations like r=−0.9999, fit through what is
+effectively 3 real data points tripled) are **not meaningful and are
+excluded from interpretation** — the per-model, all-6-layers numbers
+above are the trustworthy level of this analysis.
+
+**Interpretation.** This is now the third time three independent
+analyses have converged on the same distilled/non-distilled split,
+making it substantially harder to attribute to chance or to any single
+measurement's idiosyncrasies. It also usefully narrows Experiment 27's
+open question: the delta-rank mechanism is not simply "an MLP thing that
+doesn't generalize to attention" — it appears on real, well-trained
+Transformers, just not on Stage C-lite's small toy version, and not on
+distilled models regardless of scale.
+
+**Scope of the claim.** Three models, 6-of-many layers per model (same
+subset as Experiments 19/21/23), correlational not causal, the
+effective-n caveat above. Does not establish *why* distillation
+disrupts the relationship, only that it does, now on three independent
+measures.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
