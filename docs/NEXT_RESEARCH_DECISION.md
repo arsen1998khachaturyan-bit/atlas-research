@@ -1,77 +1,83 @@
 # Next Research Decision
 
-Updated after Experiment 27 (delta-rank on the Stage C-lite Transformer),
-a clean non-replication that echoes Experiment 10's earlier finding for
-the final-matrix version of this same mechanism-hunting approach. Covers
-Track B (`atlas_nn`) only.
+Updated after Experiment 27's 8-seed addendum, which confirmed (rather
+than resolved away) a non-replication of the project's strongest
+mechanism finding on the Transformer. Covers Track B (`atlas_nn`) only.
 
 ## 1. What we learned
 
 **Experiments 25-26:** delta-rank fraction (effective rank of the
-training update, not the final matrix) is the strongest mechanism
-correlation found in this project (r=-0.75, MLP hidden layer, across a
-6-condition capacity sweep).
+training update) is the strongest mechanism correlation found in this
+project (r=-0.75, MLP hidden layer, 6-condition capacity sweep).
 
-**Experiment 27 (this round) -- doesn't transfer to the Transformer.**
-Pooled r=-0.15, block 0 r=+0.16 (wrong direction), block 1 r=-0.15
-(right direction, weak). A sublayer-type breakdown, if anything, points
-opposite to the MLP's result. This closely echoes Experiment 10's
-non-replication of the *final*-matrix effective-rank finding on this
-same architecture -- both versions of rank-based mechanism-hunting
-(final matrix, training update) hit the same wall on the Transformer.
+**Experiment 27 + addendum (this round) -- confirmed non-replication on
+the Transformer, checked at two seed counts.** At 3 seeds: pooled
+r=-0.15, block 0 wrong direction, block 1 weak-right-direction. At 8
+seeds (matching the project's later standard, and the same seed-count
+increase that resolved Experiment 10/11's earlier ambiguity toward a
+real positive result): pooled r=-0.06 (weaker), block 1 flips to the
+*wrong* direction. More statistical power sharpened the non-relationship
+rather than revealing a hidden one. The sublayer-type pattern is stable
+across both seed counts and points opposite to the MLP's prediction:
+`out_proj` has both the most-concentrated updates and the lowest gain.
 
 ## 2. What failed / remains untested
 
-- Only 3 seeds used for Experiment 27 (Experiment 9's original power).
-  Experiment 11's addendum showed raising 3->8 seeds materially changed
-  a weak/inconsistent correlation's picture (there, revealing a real
-  positive relationship that 3 seeds had obscured as slightly negative).
-  Not yet tried here -- the most direct, cheap next step before treating
-  this non-replication as final.
-- Why delta-rank fraction (and final-matrix effective rank before it)
-  works for the MLP but not the Transformer remains unexplained. A
-  plausible, untested story: residual connections and LayerNorm (already
-  implicated in Experiments 11/13/14/17 as an error-absorbing pathway
-  independent of any single sublayer's own weight structure) may make
-  rank-based metrics generally less informative on this architecture,
-  regardless of which specific rank-based quantity is measured.
+- *Why* delta-rank fraction (and final-matrix effective rank before it,
+  Experiment 10) predicts the MLP well and the Transformer poorly is
+  still unexplained -- two independent rank-based metrics have now hit
+  the same architecture wall, which narrows the space of explanations
+  (something about residual connections/LayerNorm's error-absorbing
+  role, per the standing hypothesis from Experiments 11/13/14/17) but
+  doesn't test it directly.
 - Delta-rank fraction has not been checked on any real pretrained model.
 - The scale-vs-training-procedure question from Experiments 21-24 remains
   open, separately from this thread.
+- The MLP input-layer mystery itself (why the input layer's update stays
+  diffuse regardless of capacity) still has no causal explanation, only
+  the correlational evidence from Experiments 25-26.
 
 ## 3. What worked
 
-- Treating "does this transfer to the Transformer" as a real, gate-worthy
-  question rather than assuming a strong MLP result would generalize --
-  exactly the discipline that caught the Experiment 7->10 non-replication
-  the first time this exact pattern occurred, now applied consistently
-  to a second, related metric.
-- Flagging the classifier head's r=0.95 as a numerical artifact (constant
-  input to a correlation, degenerate 2-dimensional max rank) before it
-  could be mistaken for a real finding -- the same discipline Experiment
-  7 established for this exact layer type.
+- Not stopping at the first non-replication and not assuming a second
+  seed-count check would automatically resolve it favorably (as
+  Experiment 11's addendum did) -- running the check with a genuinely
+  open mind about which direction it would go, and reporting the actual
+  (sharpened-negative) result rather than the one that would have made a
+  tidier narrative.
+- Extending both the delta-rank script AND its upstream compression-gain
+  source (the budget search) to 8 seeds together, rather than only
+  adding seeds to the metric being tested while leaving its comparison
+  data at lower power -- kept the two sides of the correlation on equal
+  footing.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes on the core claim; the delta-rank mechanism is now known to be
-MLP-specific, not general.** The central behavioral-robustness effect
-remains well-supported across every architecture and every real model
-tested. The *specific* rank-based explanations for *why* (both final-
-matrix and training-update versions) are now known to work well for the
-MLP and poorly for the Transformer -- a real, useful narrowing of what
-"the mechanism" actually is, not evidence against the phenomenon itself.
+**Yes on the core claim; the mechanism-hunting thread has now clearly
+mapped its own boundary.** Two independent rank-based metrics (final
+matrix, training update) each explain the MLP's compression-gain pattern
+well and the Transformer's poorly, at good statistical power on both
+architectures. This is a stable, well-established boundary of what these
+specific metrics can explain -- not evidence against the underlying
+compression-gain phenomenon, which remains robust across every
+architecture and every real model tested throughout this project.
 
 ## 5. The single most informative next experiment
 
-**Rerun Experiment 27 at 8 seeds**, mirroring exactly how Experiment 11's
-addendum resolved a similar weak/ambiguous 3-seed correlation on this
-same Transformer. Cheap (Stage C-lite training is fast) and the most
-direct way to know whether this non-replication is real or another
-small-sample artifact before treating it as settled.
+No single option clearly dominates; in rough priority order:
 
-After that, in rough priority order: (a) a fourth pretrained model
-isolating scale from training procedure (Experiments 21-24's still-open
-question); (b) a real pretrained-model check of delta-rank fraction,
-now that the Stage C (real) infrastructure exists; (c) fold Experiments
-18-27 into the project-wide synthesis artifact, which currently stops at
-Experiment 17.
+**(a)** A real pretrained-model check of delta-rank fraction, now that
+the Stage C (real) infrastructure exists -- would add a third data point
+(after MLP and Stage C-lite Transformer) on whether this metric is
+architecture-general or MLP-specific, and real models are the highest-
+value target given the project's recent emphasis there.
+
+**(b)** A fourth pretrained model isolating scale from training
+procedure (Experiments 21-24's still-open question) -- unrelated thread,
+similar priority.
+
+**(c)** Fold Experiments 18-27 into the project-wide synthesis artifact,
+which currently stops at Experiment 17 and does not reflect any of the
+real-pretrained-model or delta-rank work -- the safest, no-compute-risk
+option, worth doing regardless of which research thread gets picked up
+next.

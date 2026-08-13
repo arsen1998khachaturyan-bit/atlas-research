@@ -2304,3 +2304,54 @@ picture) has not been tried and could plausibly sharpen or reverse this
 reading, per that exact precedent.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+### Experiment 27 addendum — raised to 8 seeds: the non-replication holds, and sharpens rather than reverses
+
+**Why.** Experiment 11's addendum (raising the same script's seed count
+from 3 to 8) turned a weak, ambiguous correlation into a clear positive
+one — direct precedent for not treating Experiment 27's 3-seed null
+result as final. Reran both `run_atlas_nn_stage_c_lite_budget_search.py`
+(to get matching `compression_gain` values for 5 new seeds) and
+`analyze_stage_c_lite_delta_rank.py` at the full 8-seed set
+(11/22/33/44/55/66/77/88).
+
+**Result — unlike Experiment 11's precedent, more seeds did not reveal a
+hidden relationship; if anything, the non-relationship sharpened
+(n=56, pooled across all 8 seeds × 7 layers):**
+
+| scope | n (3 seeds → 8 seeds) | Pearson r (3 seeds → 8 seeds) |
+|---|---|---|
+| overall (pooled) | 21 → 56 | −0.15 → **−0.06** |
+| block 0 | 9 → 24 | +0.16 → +0.16 (unchanged) |
+| block 1 | 9 → 24 | −0.15 → **+0.15** (flipped to the wrong direction) |
+| classifier head | 3 → 8 | 0.95 → 0.74 (still an artifact — delta-rank fraction constant at 0.500) |
+
+Block 1, the one scope that had shown a weak result in the *right*
+direction at 3 seeds, flips sign at 8 — the opposite of what happened
+when this same seed-count increase resolved Experiment 10/11's
+ambiguity. The sublayer-type breakdown continues to point away from the
+MLP's prediction: `out_proj` still has both the lowest delta-rank
+fraction (0.328, most concentrated) *and* the lowest mean gain (2.508) —
+now confirmed at nearly double the sample size, not a fluke of the
+original 3 seeds.
+
+**Interpretation.** This settles the question this addendum set out to
+answer: Experiment 27's non-replication was not a small-sample artifact.
+Delta-rank fraction's strong MLP correlation (Experiments 25–26, r=−0.75)
+genuinely does not transfer to the Stage C-lite Transformer, at good
+statistical power now. This is a real, stable architectural difference,
+not noise — worth treating with the same confidence the project affords
+its positive findings, per mission section 11.
+
+**Why this cuts differently from Experiment 11's precedent, and that's
+fine.** Experiment 11's addendum was cited as a reason to double-check
+rather than as a prediction of what would happen — more seeds resolving
+ambiguity in one direction there doesn't mean they always will. Here,
+more seeds resolved the ambiguity in the *other* direction (toward
+"genuinely doesn't transfer" rather than "secretly does"), which is
+exactly as informative and exactly as valid a use of the same
+falsification discipline.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

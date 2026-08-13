@@ -1183,35 +1183,50 @@ does, on two independent measures now.
 
 ---
 
-## OBSERVATION: delta-rank fraction does NOT transfer cleanly to the Stage C-lite Transformer
+## VERIFIED RESULT: delta-rank fraction does NOT transfer to the Stage C-lite Transformer — confirmed at 8 seeds, not a small-sample artifact
 
 **What was tested.** Whether Experiments 25–26's strongest-in-the-project
 correlation (delta-rank fraction vs. compression-gain magnitude, r=−0.75
-on the MLP hidden layer) holds on the Stage C-lite Transformer, using
-Experiment 9's exact 3-seed training setup and the compression-gain
-numbers already measured there.
+on the MLP hidden layer) holds on the Stage C-lite Transformer.
 
-**Result.** No clean relationship: pooled r=−0.15 (weak), block 0 r=+0.16
-(wrong direction), block 1 r=−0.15 (right direction, weak). The
-classifier head's apparent r=0.95 is a numerical artifact of that layer's
-degenerate 2-dimensional max rank (delta-rank fraction constant at 0.500
-to 3 decimals), not a real finding. A sublayer-type breakdown, if
-anything, points the *opposite* direction from the MLP's result:
-`out_proj` has the lowest (most-concentrated) mean delta-rank fraction
-of any sublayer type but the *lowest* mean gain, not the highest.
+**Result at 3 seeds (Experiment 9's original power).** No clean
+relationship: pooled r=−0.15, block 0 r=+0.16 (wrong direction), block 1
+r=−0.15 (right direction, weak).
 
-**Why this belongs here even though it's a clean negative.** It directly
-echoes Experiment 10's non-replication of the *final*-matrix effective-rank
-finding on this same Transformer — both the "final matrix" and "training
-update" versions of this rank-based mechanism-hunting approach hit the
-same architecture-generalization wall. Reported per mission section 11:
-a negative result that narrows a promising finding's scope is exactly as
-valuable as the positive finding itself.
+**Result at 8 seeds (addendum, matching the project's later standard) —
+the non-relationship sharpens, it does not resolve into a hidden
+positive one.** Pooled r=−0.06 (weaker still), block 0 r=+0.16
+(unchanged), **block 1 flips to r=+0.15** (the one scope with the
+"right" sign at 3 seeds now has the wrong one at 8) — the opposite of
+what happened when this exact seed-count increase (3→8) resolved
+Experiment 10/11's earlier ambiguity in a positive direction. The
+classifier head's apparent correlation (0.95 at 3 seeds, 0.74 at 8) is
+confirmed as a numerical artifact both times — that layer's
+degenerate 2-dimensional max rank leaves `delta_rank_fraction` constant
+at 0.500. The sublayer-type breakdown is stable across both seed counts:
+`out_proj` has both the lowest (most-concentrated) mean delta-rank
+fraction of any sublayer type *and* the lowest mean compression gain —
+the opposite of what the MLP's finding would predict — at both 3 and 8
+seeds.
 
-**Caveat.** 3 seeds only (Experiment 9's original power, not the
-project's later 8-seed standard) — Experiment 11's addendum showed a
-qualitatively similar re-run at 8 seeds can meaningfully change a
-weak/inconsistent correlation's picture. Not yet re-run at higher power.
+**How verified.** `experiments/analyze_stage_c_lite_delta_rank.py` at
+`SEEDS = (11, 22, 33, 44, 55, 66, 77, 88)`, against a matching 8-seed
+rerun of `experiments/run_atlas_nn_stage_c_lite_budget_search.py`.
+Reproduce with `python -m experiments.run_atlas_nn_stage_c_lite_budget_search`
+then `python -m experiments.analyze_stage_c_lite_delta_rank` (writes
+`results/atlas_nn_stage_c_lite_delta_rank.json`).
+
+**Why this belongs here even though it's a clean negative, now confirmed
+twice.** It directly echoes Experiment 10's non-replication of the
+*final*-matrix effective-rank finding on this same Transformer — both
+the "final matrix" and "training update" versions of this rank-based
+mechanism-hunting approach hit the same architecture-generalization
+wall, and raising statistical power made the wall more solid, not less.
+Reported per mission section 11: a negative result that narrows a
+promising finding's scope is exactly as valuable as the positive finding
+itself — and checking whether it survives more power, in *either*
+direction, is exactly the discipline this project has applied to every
+promising result so far.
 
 ---
 
