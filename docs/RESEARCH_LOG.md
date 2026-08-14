@@ -2447,3 +2447,82 @@ disrupts the relationship, only that it does, now on three independent
 measures.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 29 — A fourth model to isolate scale from training procedure: `microsoft/DialoGPT-small`
+
+**Context.** Three real models so far: distilgpt2 (82M, distilled,
+late-block-dominant), gpt2 (124M, non-distilled, early-block-dominant),
+gpt2-medium (355M, non-distilled, matches gpt2). Three independent
+measures (depth-gradient shape, two rank correlations) all split these
+the same way — by training procedure, not scale — but a fourth model was
+needed to test the hypothesis directly rather than just accumulate more
+correlational agreement between the same three checkpoints.
+
+**Model choice.** `microsoft/DialoGPT-small` — config-identical to
+`gpt2` (124M params, 12 blocks, 768-dim, 12 heads; verified
+124,439,808 parameters, matching gpt2 exactly), but trained differently:
+initialized from gpt2's own weights and fine-tuned on dialogue data —
+neither distilled nor pretrained from scratch, a third training-procedure
+category. If it matches gpt2's pattern, that argues distillation
+specifically (not just "any deviation from pure from-scratch training")
+drives distilgpt2's opposite pattern.
+
+**A real bug found and fixed along the way.** The first smoke-test
+attempt returned `NaN` for `relative_logit_error` on every single row,
+including the very first (a near-lossless 8-bit quantization). Traced to
+a genuine numerical issue, not a logic bug: DialoGPT-small's raw logits
+are large enough that `run_layer_experiment`'s naive sum-of-squares norm
+silently overflowed float32 (confirmed via numpy's own "overflow
+encountered in dot" warning). Fixed by computing the norm in float64
+(`atlas_nn/stage_b/experiment.py`) — a correctness fix in code shared by
+every experiment since Stage B, verified to change nothing for any
+model whose logits don't approach overflow range (i.e., every prior
+result stands unmodified; only DialoGPT-small's results, all NaN
+garbage, needed to be discarded and rerun).
+
+**Also lost to two more container restarts.** The corrected smoke test
+was killed mid-run once (at 81%, 272/336 rows, no checkpointing exists
+for smoke tests) before completing successfully on a third attempt.
+Between this and Experiment 23's earlier restart, the container has now
+interrupted long-running work three separate times in this project.
+
+**Result 1 — the magnitude generalizes to a fourth model (mean
+rel_logit_error, pooled over 12 layers/seeds):**
+
+| method | gain |
+|---|---|
+| atlas_block_dict16_res4bit | 7.8× |
+| prune_50pct | 6.6× |
+| quantize_4bit_block64 | 7.6× |
+| vector_codebook_k16 | 3.4× |
+| svd_rank4 | 3.8× |
+| quantize_8bit_pertensor | 1.9× |
+
+In range with all three prior models (1.2×–9.5× across the full set) —
+the core behavioral-robustness effect holds on a fourth independent
+checkpoint, regardless of its unusual training procedure.
+
+**Result 2 — the smoke test's fixed-method depth hints resemble
+gpt2/gpt2-medium, not distilgpt2 (flagged as provisional, per the
+established lesson that only a budget search gives a trustworthy depth
+reading):**
+
+| block | svd_rank4 gain | atlas_block_dict gain |
+|---|---|---|
+| 0 (early) | 4.8× | **8.8×** |
+| 6 (middle) | **5.8×** | 7.1× |
+| 11 (late) | 1.6× | 6.0× |
+
+`atlas_block_dict` decreases monotonically with depth — the same
+qualitative shape gpt2 and gpt2-medium both showed under this method,
+opposite distilgpt2's true (budget-search-verified) late-block-dominant
+pattern. `svd_rank4` peaks at the middle block, matching every model
+tested under this specific fixed method so far (all four models'
+`svd_rank4` smoke-test readings peak away from the last block) — a
+reminder of exactly why this project stopped trusting single-fixed-
+method depth readings after Experiments 19–21.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md` — the budget
+search is the decisive test, not yet run as of this writeup.
