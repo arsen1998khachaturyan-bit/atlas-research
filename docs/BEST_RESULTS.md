@@ -1278,6 +1278,67 @@ correlation).
 
 ---
 
+## VERIFIED RESULT: a fourth model refutes "distillation specifically" and supports a broader split — training from scratch vs. starting from another model's already-trained weights
+
+**Claim.** `microsoft/DialoGPT-small` (124M, 12 blocks, config-identical
+to gpt2, but initialized from gpt2's own weights and fine-tuned on
+dialogue data — never distilled) shows the *same direction* of
+achievable-ratio depth-gradient reversal as distilgpt2, and more
+strongly: block 0's mean gain is **0.59×** (pretrained early-block
+weights are *harder* to compress at the 5% quality bar than a same-shape
+random matrix — the only sub-1 block-mean gain seen on any real
+pretrained model in this project), block 11's is **17.0×**, a 28.6:1
+late:early ratio exceeding distilgpt2's own 17.3:1. gpt2 and gpt2-medium
+(both trained from scratch, at very different scales) agree closely with
+each other in the opposite direction (≈3.5:1 early:late, both). Since
+DialoGPT-small was never distilled — it started from gpt2's own weights,
+the very model whose pattern it does *not* match — "distillation
+specifically" cannot be the mechanism. What distilgpt2 and DialoGPT-small
+share instead, and gpt2/gpt2-medium don't, is that neither started
+training from a random initialization: both began from an
+already-trained model's weights (a teacher's, or gpt2's own) and were
+further optimized from there.
+
+**How verified.** `experiments/run_atlas_nn_stage_c_real_budget_search_dialogpt.py`,
+identical 6-layer (blocks 0/11 × 3 sublayer types), 4-state,
+31-config-sweep, 5%-quality-bar methodology as Experiments 19/21/23, run
+via the checkpointed parallel wrapper. Interrupted by a fourth container
+restart at 16/24 layer-searches; resumed correctly from checkpoints
+rather than restarting, confirming the checkpointing infrastructure
+built after Experiment 23's restart generalizes to a new model without
+modification. Reproduce with
+`python -m experiments.run_atlas_nn_stage_c_real_budget_search_dialogpt`
+(writes `results/atlas_nn_stage_c_real_budget_search_dialogpt.json`).
+
+**Why this is stronger evidence than three converging measures on the
+same three checkpoints.** Experiments 21/23/24/28 all split the *same*
+three models (distilgpt2 vs. gpt2 vs. gpt2-medium) the same way, which
+is repeated agreement between the same data points, not new information
+about *why*. DialoGPT-small is a genuinely new test: it isolates
+"distillation" from "not trained from scratch" by being an example of
+the latter without the former. That it patterns with distilgpt2 anyway —
+and more strongly — directly rules out the narrower hypothesis and
+narrows the explanation to the broader one.
+
+**Still correlational, small sample.** Four checkpoints, two per
+category (from-scratch: gpt2, gpt2-medium; derived-from-prior-weights:
+distilgpt2, DialoGPT-small). The two derived models used mechanically
+different procedures (teacher-distillation vs. ordinary fine-tuning) that
+happen to agree here; a fifth model would be needed to rule out
+coincidence at this sample size.
+
+**What continues to hold across all four models, no exceptions.** Across
+48 total budget searches now, every random-init search was won by the
+safe `quantize` fallback; every pretrained search that met the quality
+bar was won by a structure-aware method instead. Never once failed to
+replicate across four independent checkpoints.
+
+**Scope of the claim.** Four models, 6-layer subsets, one behavioral-
+error threshold, discrete parameter grids. Narrows but does not
+conclusively prove the training-origin hypothesis.
+
+---
+
 ## Explicitly not yet claimed
 
 - Nothing about *larger* networks (mission Stage D) or models above ~100M

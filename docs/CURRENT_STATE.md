@@ -404,12 +404,36 @@ unreliable — same seed-redundancy caveat as Experiment 24 — and excluded
 from interpretation; only the per-model, all-6-layer numbers are
 trustworthy.)
 
-See `docs/RESEARCH_LOG.md` Experiments 18–28 and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (a fourth
-pretrained model isolating scale from training procedure — now
-motivated by three converging measures — investigating why Stage
-C-lite's from-scratch Transformer diverges from real ones, or folding
-all of this into the synthesis artifact).
+**Experiment 29 (fourth model, `microsoft/DialoGPT-small`, completed) —
+resolves scale-vs-training-procedure: "distillation specifically" is
+refuted in favor of a broader "from-scratch vs. derived-from-prior-
+weights" split.** DialoGPT-small (124M, config-identical to gpt2, but
+initialized from gpt2's own weights and fine-tuned on dialogue — never
+distilled) shows distilgpt2's late-block-dominant depth-gradient
+pattern, not gpt2's, and more extremely: block 0's mean gain is **0.59×**
+(the only sub-1 block-mean gain seen on any real model — pretrained
+early-block weights are *harder* to compress than a same-shape random
+matrix here), block 11's is **17.0×**, a 28.6:1 late:early ratio
+exceeding distilgpt2's own 17.3:1. Since DialoGPT-small was never
+distilled — it started from gpt2's own weights, the very model whose
+pattern it does *not* match — distillation itself cannot be the
+mechanism. What distilgpt2 and DialoGPT-small share instead, and
+gpt2/gpt2-medium (both trained from scratch) don't, is that neither
+started from a random initialization. This run also survived a fourth
+unannounced container restart (16/24 layer-searches complete before the
+restart), recovered cleanly via the checkpointing infrastructure built
+after Experiment 23 — confirming it generalizes to new models with zero
+code changes. Structural finding (every random-init search loses to
+`quantize`; every qualifying pretrained search uses a structure-aware
+method) now holds with no exceptions across 48 budget searches on four
+independent real checkpoints.
+
+See `docs/RESEARCH_LOG.md` Experiments 18–29 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (a fifth model to
+rule out the from-scratch-vs-derived split being coincidental at n=2 per
+category, investigating why Stage C-lite's from-scratch Transformer
+diverges from real ones, or folding all of this into the synthesis
+artifact).
 
 ### Design constraints adopted for Track B
 

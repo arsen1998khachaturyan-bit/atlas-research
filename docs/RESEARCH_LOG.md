@@ -2524,5 +2524,94 @@ tested under this specific fixed method so far (all four models'
 reminder of exactly why this project stopped trusting single-fixed-
 method depth readings after Experiments 19–21.
 
-**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md` — the budget
-search is the decisive test, not yet run as of this writeup.
+**Result 3 (the decisive one) — the budget search REVERSES the smoke
+test's provisional reading: DialoGPT-small's true depth gradient matches
+distilgpt2's late-block-dominant pattern, not gpt2's, and even more
+extremely.**
+
+**Context.** `experiments/run_atlas_nn_stage_c_real_budget_search_dialogpt.py`,
+same protocol as Experiments 21/23 (6 layers — blocks 0 and 11 of 12 × 3
+sublayer types — × 4 states, full 31-config sweep, 5% behavioral-error
+bar), run via the checkpointed parallel wrapper. This run was itself
+interrupted by a **fourth** container restart, at 16 of 24 layer-searches
+(~67%) — the checkpointing infrastructure built after Experiment 23's
+restart worked exactly as intended: the rerun resumed from the 16
+completed checkpoints and only recomputed the remaining 8, rather than
+starting over. `results/atlas_nn_stage_c_real_budget_search_dialogpt.json`.
+
+**Result (gain = pretrained best-ratio / mean random-init best-ratio at
+the same 5% error bar, matching Experiment 23's exact methodology):**
+
+| layer | pretrained ratio | random-init ratio (mean) | gain |
+|---|---|---|---|
+| block 0 attn.c_proj | 3.16 | 5.33 | **0.59×** |
+| block 0 mlp.c_fc | 3.17 | 5.33 | 0.59× |
+| block 0 mlp.c_proj | 3.17 | 5.33 | 0.59× |
+| block 11 attn.c_proj | 24.00 | 8.00 | 3.00× |
+| block 11 mlp.c_fc | 307.20 | 8.00 | **38.40×** |
+| block 11 mlp.c_proj | 76.80 | 8.00 | 9.60× |
+
+Block 0's mean gain (**0.59×**) is *below 1* — DialoGPT-small's own
+trained early-block weights are harder to compress at this quality bar
+than a same-shape random matrix, the only time this project has seen a
+sub-1 gain on a real pretrained model's block-mean. Block 11's mean gain
+(**17.0×**) dominates by a **28.6:1** margin — a stronger late-block skew
+than distilgpt2's own budget-search result (block 0: 1.3×, block 5:
+22.3×, ≈17.3:1). Summary across all four real models now tested this way:
+
+| model | training procedure | early-block gain | late-block gain | ratio (late:early) |
+|---|---|---|---|---|
+| gpt2 | from scratch | 24.8× | 7.1× | 0.29 (early dominates ≈3.5:1) |
+| gpt2-medium | from scratch | 32.9× | 9.3× | 0.28 (early dominates ≈3.5:1) |
+| distilgpt2 | distilled from gpt2 | 1.3× | 22.3× | 17.3 (late dominates) |
+| **DialoGPT-small** | **fine-tuned from gpt2's weights** | **0.6×** | **17.0×** | **28.6 (late dominates, most extreme)** |
+
+**This refutes "distillation specifically," and supports a broader
+hypothesis instead.** DialoGPT-small was never distilled — it started
+from gpt2's own trained weights and was further trained (fine-tuned) on
+dialogue data. If distillation itself were the mechanism, DialoGPT-small
+had no reason to share distilgpt2's reversal; it should have patterned
+with gpt2, the model whose weights it literally began from. Instead it
+shows the *same direction* of reversal as distilgpt2, more strongly. The
+one thing distilgpt2 and DialoGPT-small share, that gpt2 and gpt2-medium
+don't, is not "distillation" — it's **not being trained from scratch**:
+both started from an already-trained model's weights (a teacher's, in
+distilgpt2's case; gpt2's own, in DialoGPT-small's) and were further
+optimized from that starting point, rather than initialized randomly and
+trained from zero. gpt2 and gpt2-medium, independently trained from
+scratch at different scales, agree closely with each other (Experiment
+23); distilgpt2 and DialoGPT-small, independently *derived* from prior
+weights via two different procedures (distillation vs. fine-tuning),
+also agree closely with each other, more closely than either
+non-distilled model's gain ratio matches the other's. This is a cleaner,
+better-supported split than "distillation" was: **starting point of
+training (random init vs. another model's weights), not the specific
+distillation procedure, best explains which end of the network benefits
+more from training.**
+
+**Still correlational, not fully causal.** Four checkpoints, two per
+category, is not a large sample, and "started from another model's
+weights" still bundles together two mechanically different procedures
+(distillation with a teacher loss; ordinary fine-tuning with a standard
+LM loss) that happen to agree here. A fifth model — e.g. a model
+fine-tuned from scratch-trained weights via a third distinct procedure,
+or an ablation that fine-tunes gpt2 on *more* dialogue data to see if the
+effect strengthens — would test whether "not-from-scratch" is really the
+dividing line or whether DialoGPT-small and distilgpt2 merely agree by
+coincidence of small sample size.
+
+**What continues to hold across all four models, no exceptions.** Across
+now 48 total budget searches (distilgpt2 + gpt2 + gpt2-medium + DialoGPT-
+small combined), every single random-init search was won by the safe
+`quantize` fallback; every pretrained search that met the 5% quality bar
+at all was won by a structure-aware method instead (`atlas_block_dict`
+or `svd`). This structural finding has never once failed to replicate,
+across four independent checkpoints now.
+
+**Scope of the claim.** Four models, 6-layer subsets, one behavioral-
+error threshold, discrete parameter grids. The "training-from-scratch
+vs. derived-from-prior-weights" hypothesis is better-supported than
+"distillation specifically" was, but still not conclusively proven — see
+the fifth-model suggestions above.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
