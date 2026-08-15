@@ -1,91 +1,101 @@
 # Next Research Decision
 
-Updated after Experiment 30, which confirmed the training-origin
-hypothesis a third time on an independent derivation procedure and
-surfaced a new, untested idea: that the depth-gradient reversal's
-*magnitude* may track how much post-initialization training occurred,
-not just whether any occurred. Covers Track B (`atlas_nn`) only.
+Updated after Experiment 31, which refuted its own predecessor's
+magnitude-tracks-training-depth hypothesis via a direct, single-base-
+model controlled test -- a real correction, not a confirmation. Covers
+Track B (`atlas_nn`) only.
 
 ## 1. What we learned
 
-**Experiment 29:** DialoGPT-small (fine-tuned from gpt2, never
-distilled) showed distilgpt2's late-block-dominant pattern, refuting
-"distillation specifically" in favor of "trained from scratch vs.
-started from another model's already-trained weights."
+**Experiment 30:** gpt2-imdb's late:early gain ratio (2.73:1) was much
+weaker than distilgpt2's (17.3:1) or DialoGPT-small's (28.6:1),
+suggesting fine-tuning duration/intensity might explain the magnitude
+gradient among "derived-from-prior-weights" models.
 
-**Experiment 30 (this round) -- a third derivation procedure agrees on
-direction, disagrees on magnitude.** `lvwerra/gpt2-imdb` (gpt2
-fine-tuned on IMDB reviews -- a third distinct procedure, on a third
-distinct domain) shows the same late-block-dominant direction (2.73:1
-late:early) as distilgpt2 (17.3:1) and DialoGPT-small (28.6:1), not
-gpt2/gpt2-medium's early-dominant direction (0.28-0.29:1). Five for five
-models now agree on sign with zero exceptions. But gpt2-imdb's effect is
-an order of magnitude weaker than the other two "derived" models -- the
-most plausible reading is that fine-tuning *depth* (corpus size,
-training procedure intensity) tracks the magnitude, with distillation
-and heavy dialogue fine-tuning producing much larger shifts than light
-IMDB fine-tuning.
+**Experiment 31 (this round) -- direct test refutes it.** Fine-tuned
+gpt2 itself (same base model, same architecture) on a fixed narrow
+corpus for 20 vs. 500 steps. The late:early gain ratio moved the
+*opposite* direction from predicted: 0.29 (base gpt2) -> 0.20 (20 steps)
+-> 0.07 (500 steps) -- more training pushed *further* into gpt2's own
+early-dominant pattern, not toward the derived models' late-dominant one.
+The late block's mean gain fell monotonically (7.07x -> 5.07x -> 1.75x),
+converging toward random-init parity. Training duration alone, holding
+a narrow corpus fixed, is not the mechanism -- and can run backward.
+Corpus diversity/naturalness is now the better-supported candidate
+(untested directly): distilgpt2/DialoGPT-small/gpt2-imdb all used real,
+diverse natural-language data; Experiment 31's corpus was small and
+repetitive by construction.
 
 ## 2. What failed / remains untested
 
-- The magnitude-tracks-training-depth idea is new and unverified -- it
-  would need fine-tuning duration/data volume varied directly on a
-  single base model (e.g. checkpoint gpt2 fine-tuned on IMDB at several
-  different training-step counts) to test as a continuous relationship,
-  rather than inferred from comparing three unrelated, differently-
-  confounded checkpoints.
-- *Why* starting from prior weights (of any kind) disrupts the
-  depth-gradient shape is still not mechanistically explained -- five
-  models and multiple measures now agree it does, none explain why.
-- *Why* Stage C-lite's small from-scratch Transformer showed no
-  delta-rank relationship while real non-distilled Transformers show a
-  strong one (Experiment 27's open question) is still unexplained.
+- The magnitude-tracks-training-depth hypothesis (Experiment 30) is now
+  refuted as stated. Do not resurrect it without a corpus-diversity
+  control.
+- Corpus diversity/naturalness as the real driver of magnitude is a new
+  hypothesis, itself completely untested -- would need fine-tuning gpt2
+  on a real, diverse natural-language corpus (at comparable step counts
+  to Experiment 31's sweep) to see if the late-block gain rises instead
+  of falling.
+- The five-model, zero-exception *sign* split (from-scratch vs.
+  derived-from-prior-weights) from Experiments 21-30 is untouched by
+  this result and remains the best-supported finding in this thread --
+  only the magnitude explanation attached to it in Experiment 30 was
+  wrong.
+- *Why* Stage C-lite's small from-scratch Transformer diverges from real
+  non-distilled Transformers on delta-rank fraction (Experiment 27) is
+  still unexplained.
 - The per-block breakdowns in Experiments 24/28 remain unreliable due to
   the seed-redundancy power caveat.
 
 ## 3. What worked
 
-- The checkpointed parallel budget search completed Experiment 30 in a
-  single pass, no container restart -- the infrastructure has now
-  survived one restart directly (Experiment 23) and avoided further loss
-  on every run since, including two more multi-hour ones.
-- Choosing a fifth model on a third domain (not dialogue, not
-  distillation) specifically to stress-test whether Experiment 29's
-  result generalizes or was task-specific -- it could have refuted the
-  hypothesis and didn't, which is worth more than a model chosen to
-  merely add a data point.
-- Noticing the magnitude gradient rather than only checking direction --
-  a binary hypothesis would have been satisfied by "same sign" alone and
-  would have missed the more interesting, more specific pattern in the
-  data.
+- Building the fine-tuning infrastructure cheaply (a ~70-line training
+  loop, zero changes needed to any downstream smoke-test/budget-search
+  code since `save_pretrained` output loads via the same `model_name`
+  parameter as a HF Hub name) meant testing a real, falsifiable
+  prediction cost about as much engineering effort as reusing an
+  existing model.
+- Running only the two extreme checkpoints (20, 500 steps) instead of
+  all three saved roughly a third of the compute while still getting an
+  unambiguous, monotonic-enough result to draw a conclusion; the third
+  checkpoint (100 steps, infra already built) was correctly not run once
+  the extremes disagreed with the hypothesis clearly.
+- The checkpointed budget search survived a fifth container restart with
+  zero lost compute (the finished ft20 result was already saved to disk
+  before the restart hit).
+- Stating the refutation as a visible, explicit correction to Experiment
+  30's own claim (in `docs/BEST_RESULTS.md`, blockquoted in place) rather
+  than quietly revising the earlier entry -- continuing this project's
+  standing discipline for exactly this situation.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes.** The core behavioral-robustness / compression-gain effect has
-now replicated on five independent real pretrained checkpoints with no
-exceptions (every random-init budget search loses to `quantize`; every
-pretrained search that clears the quality bar uses a structure-aware
-method, 120/120 layer-state searches at full granularity). The
-depth-gradient reversal's *direction* is now explained by training
-origin with strong, repeated support; its *magnitude* may be explained
-by training depth, a promising but untested lead.
+**Yes, for the core effect; the depth-gradient mechanism story is
+narrower than it looked after Experiment 30.** The behavioral-robustness
+/ compression-gain effect itself is unaffected by this result and has
+now held on five real pretrained checkpoints with no exceptions. The
+*explanation* for why derived-from-prior-weights models show late-block
+dominance is back to "training origin matters, magnitude's cause is
+unknown" rather than the more specific (and now wrong) "duration
+explains magnitude" story Experiment 30 suggested.
 
 ## 5. The single most informative next experiment
 
 No single option clearly dominates; in rough priority order:
 
-**(a)** Test the magnitude-tracks-training-depth hypothesis directly:
-fine-tune (or find pre-existing checkpoints of) the same base model at
-several different training intensities and check whether the
-late:early gain ratio increases monotonically with training depth. This
-is the most specific, most falsifiable next test the project has had in
-several rounds.
+**(a)** Test the corpus-diversity hypothesis directly: fine-tune gpt2 on
+a real, diverse natural-language corpus (not the narrow template one) at
+comparable step counts to Experiment 31's sweep, and check whether the
+late:early ratio rises this time. This is the natural, most specific
+next test given Experiment 31's result.
 
 **(b)** Investigate why Stage C-lite's from-scratch Transformer diverges
 from real non-distilled Transformers on delta-rank fraction specifically
-(carried over from two prior decisions, still untouched).
+(carried over from three prior decisions, still untouched).
 
-**(c)** Fold Experiments 29-30 (and the still-outstanding 18-28) into
-the project-wide synthesis artifact, which currently stops at
-Experiment 17 -- the safe, no-compute-risk option, worth doing regardless
-of which research thread is picked up next.
+**(c)** The steps=100 checkpoint's budget search is already built
+(`run_atlas_nn_stage_c_real_budget_search_ft100.py`) but was held back;
+running it would confirm whether the 20->500 trend is monotonic in the
+middle or non-monotonic, though this is lower priority than testing the
+corpus-diversity hypothesis directly since the sign of the effect is
+already clear from the extremes.

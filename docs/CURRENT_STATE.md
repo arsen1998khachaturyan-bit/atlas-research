@@ -449,12 +449,35 @@ search uses a structure-aware method) now holds with no exceptions
 across 120 layer-state budget searches on five independent real
 checkpoints.
 
-See `docs/RESEARCH_LOG.md` Experiments 18–30 and
+**Experiment 31 (single-base-model fine-tuning-intensity sweep,
+completed) — Experiment 30's magnitude hypothesis is REFUTED, cleanly
+and in the opposite direction.** Built a small fine-tuning pipeline
+(`atlas_nn/stage_c_real/finetune.py`, needing zero changes to any
+downstream infra) and fine-tuned gpt2 itself, on a fixed narrow
+self-authored corpus, to 20 vs. 500 optimizer steps — isolating training
+duration as the only variable. The late:early gain ratio moved *away*
+from the derived models' pattern as training increased, not toward it:
+0.29 (base gpt2) → 0.20 (20 steps) → 0.07 (500 steps). Late block mean
+gain fell monotonically (7.07× → 5.07× → 1.75×), converging toward
+random-init parity. Training duration alone, holding a narrow corpus
+fixed, is not the mechanism and can run backward. Corpus diversity/
+naturalness is now the better-supported candidate (untested directly) —
+distilgpt2/DialoGPT-small/gpt2-imdb all used real, diverse natural-
+language data; this experiment's corpus was small and repetitive by
+construction. Explicitly corrected in place in `docs/BEST_RESULTS.md`
+rather than silently revised. The underlying five-model, zero-exception
+*sign* split (from-scratch vs. derived-from-prior-weights) from
+Experiments 21–30 is untouched — only the magnitude mechanism proposed
+in Experiment 30 was wrong. Survived a fifth container restart with zero
+lost compute (the finished half of the result was already saved to disk
+before the restart hit).
+
+See `docs/RESEARCH_LOG.md` Experiments 18–31 and
 `docs/NEXT_RESEARCH_DECISION.md` for current options (testing the
-magnitude-tracks-training-depth hypothesis directly by varying
-fine-tuning intensity on a single base model, investigating why Stage
-C-lite's from-scratch Transformer diverges from real ones, or folding
-all of this into the synthesis artifact).
+corpus-diversity hypothesis directly by fine-tuning on real natural-
+language text instead of the narrow template corpus, investigating why
+Stage C-lite's from-scratch Transformer diverges from real ones, or
+folding all of this into the synthesis artifact).
 
 ### Design constraints adopted for Track B
 

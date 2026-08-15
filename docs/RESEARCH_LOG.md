@@ -2794,4 +2794,81 @@ multi-hour run before knowing whether the extremes even differ.
 this project's own standing rule. The decisive result is the budget
 search, not yet complete as of this writeup.
 
+**Result 3 (decisive) — the hypothesis is REFUTED, and cleanly: more
+fine-tuning steps make the late block LESS compressible, not more.**
+Budget searches on the two extreme checkpoints completed (survived a
+fifth container restart mid-run — the ft20 search had already finished
+and saved its result before the restart hit, confirmed via file
+timestamp; ft500 ran to completion cleanly afterward). Gain (pretrained
+best-ratio / mean random-init best-ratio, identical methodology to every
+other real-model budget search in this project):
+
+| layer | base gpt2 | 20 steps | 500 steps |
+|---|---|---|---|
+| block 0 attn.c_proj | 72.0× | 72.0× | 72.0× |
+| block 0 mlp.c_fc | 1.19× | 1.19× | 1.19× |
+| block 0 mlp.c_proj | 1.19× | 1.19× | 1.19× |
+| block 11 attn.c_proj | 12.0× | 6.0× | 3.0× |
+| block 11 mlp.c_fc | 7.97× | 7.97× | 1.0× |
+| block 11 mlp.c_proj | 1.25× | 1.25× | 1.25× |
+| **block 0 mean** | **24.79×** | **24.79×** | **24.79×** |
+| **block 11 mean** | **7.07×** | **5.07×** | **1.75×** |
+| **ratio (late:early)** | **0.29** | **0.20** | **0.07** |
+
+Block 0's gain is *bit-for-bit identical* across all three checkpoints —
+20 and even 500 steps of fine-tuning didn't move these three layers past
+any of the discrete budget-search grid's decision boundaries at all.
+Block 11 moved substantially and monotonically in the *opposite*
+direction from Experiment 30's hypothesis: `attn.c_proj`'s achievable
+ratio exactly halves at each step count (96.0× base → 48.0× at 20 steps
+→ 24.0× at 500 — reported as observed, not claimed to be a
+generalizable "halving law"), and `mlp.c_fc` drops sharply from 63.78×
+(vector-codebook clears the 5% bar) to just 7.97× (only plain
+`quantize` clears it) between 20 and 500 steps. The late-block mean
+gain falls monotonically — 7.07× → 5.07× → 1.75× — converging *toward*
+parity with random init, not away from it. **This is the opposite
+prediction from Experiment 30's lead**, which expected more training to
+push the late:early ratio up toward the derived models' pattern
+(2.73–28.6), not down toward and past gpt2's own baseline.
+
+**Why this refutes "step count" but does not refute the underlying
+distilgpt2/DialoGPT-small/gpt2-imdb pattern.** This experiment isolated
+exactly one variable — optimizer steps on a fixed base model and a fixed
+corpus — and that variable's effect ran backward from the naive
+prediction. The corpus itself is a likely culprit: it's a small,
+combinatorially-generated, highly repetitive template corpus (reused
+from `atlas_nn.stage_c_lite.dataset` — roughly 30 subjects × 15
+adjectives × 7 templates), nothing like the large, diverse natural-
+language corpora behind distilgpt2's distillation, DialoGPT-small's
+Reddit conversations, or even gpt2-imdb's real movie reviews. Fine-
+tuning on a narrow, low-entropy corpus may narrow the network's late-
+layer representations toward that corpus specifically -- making them
+*more* load-bearing and less redundant, not more slack -- which is a
+different mechanism entirely from what distillation or large-corpus
+fine-tuning does. **Corpus diversity/naturalness, not fine-tuning
+duration per se, is now the better-supported candidate variable** behind
+Experiment 30's gpt2-imdb < DialoGPT-small < distilgpt2 ordering (light
+review fine-tuning < heavy dialogue fine-tuning < full distillation
+happens to also order by both duration *and* diversity in that dataset,
+and this experiment couldn't separate them until now — it just showed
+duration alone, holding a narrow corpus fixed, is not sufficient and can
+even push the opposite way).
+
+**This correction is stated explicitly, not folded in quietly.**
+Experiment 30's "magnitude may track training depth" framing is wrong as
+stated. It is not thrown out — the *underlying* five-model, zero-
+exception sign split from Experiments 21–30 is untouched by this result
+(this experiment didn't test distillation or large-corpus fine-tuning at
+varying intensity, only narrow-corpus fine-tuning) — but the specific
+causal story proposed to explain the *magnitude* gradient among derived
+models does not survive its most direct test, and a real alternative
+(corpus diversity) is now better-supported instead, itself still
+untested directly.
+
+**Scope of the claim.** One base model, one narrow synthetic corpus, two
+step counts (a third, steps=100, was built and could still confirm or
+complicate monotonicity, but the direction is already clear from the
+extremes and wasn't run to conserve compute). Establishes duration alone
+(on this corpus) is not the mechanism; does not establish what is.
+
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

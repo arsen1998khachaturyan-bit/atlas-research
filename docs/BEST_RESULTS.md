@@ -1392,6 +1392,28 @@ training-origin split is now well-supported across three independent
 derivation procedures; the magnitude-tracks-training-depth idea is a new
 untested hypothesis, not a confirmed finding.
 
+> **⚠ Update after Experiment 31 (single-base-model fine-tuning-intensity
+> sweep): the magnitude-tracks-training-depth hypothesis above is
+> REFUTED, and in the opposite direction from predicted.** Fine-tuning
+> gpt2 itself on a fixed, narrow, self-authored corpus for 20 vs. 500
+> optimizer steps did not push the late:early gain ratio up toward the
+> derived-models' pattern — it pushed it further down, *away* from
+> parity and deeper into gpt2's own early-dominant direction (0.29 base
+> → 0.20 at 20 steps → 0.07 at 500 steps). The late block's mean gain
+> fell monotonically (7.07× → 5.07× → 1.75×) as training increased,
+> converging toward random-init parity, not diverging from it. Isolating
+> exactly the one variable this entry's hypothesis named (training
+> duration, base model and architecture held fixed) showed it is not
+> sufficient on its own, and can run backward. The better-supported
+> candidate now is corpus diversity/naturalness — Experiment 31's corpus
+> was a small, repetitive, template-generated one, unlike distilgpt2's
+> distillation, DialoGPT-small's Reddit dialogue, or even gpt2-imdb's
+> real movie reviews — itself still untested directly. The underlying
+> five-model, zero-exception *sign* split this entry's main claim
+> describes is untouched by this result; only the specific magnitude
+> mechanism proposed to explain it is corrected here. See `docs/
+> RESEARCH_LOG.md` Experiment 31 for the full result and reasoning.
+
 ---
 
 ## Explicitly not yet claimed
