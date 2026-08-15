@@ -30,13 +30,19 @@ def finetune_checkpoints(
     max_length: int = 32,
     learning_rate: float = 5e-5,
     seed: int = 0,
+    corpus: list[str] | None = None,
 ) -> None:
-    """Fine-tunes `base_model_name` on the shared corpus, saving a full
-    checkpoint (model + tokenizer) at each step count in `output_dirs`
-    (e.g. {20: "path/steps_20", 100: "path/steps_100"}). Step counts must
-    be given in ascending order -- training continues from where the
-    previous checkpoint left off rather than restarting, so N checkpoints
-    cost the same total compute as one run to the largest step count.
+    """Fine-tunes `base_model_name` on `corpus` (defaults to Experiment
+    31's narrow sentiment-template corpus for backward compatibility --
+    pass a different corpus, e.g. Experiment 32's
+    `atlas_nn.stage_c_real.diverse_corpus.generate_diverse_corpus`, to
+    test how corpus properties other than length affect the result),
+    saving a full checkpoint (model + tokenizer) at each step count in
+    `output_dirs` (e.g. {20: "path/steps_20", 100: "path/steps_100"}).
+    Step counts must be given in ascending order -- training continues
+    from where the previous checkpoint left off rather than restarting,
+    so N checkpoints cost the same total compute as one run to the
+    largest step count.
     """
     torch.manual_seed(seed)
     tokenizer = AutoTokenizer.from_pretrained(base_model_name)
@@ -44,7 +50,8 @@ def finetune_checkpoints(
     model = AutoModelForCausalLM.from_pretrained(base_model_name)
     model.train()
 
-    corpus = build_finetune_corpus(seed=seed)
+    if corpus is None:
+        corpus = build_finetune_corpus(seed=seed)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
     step_targets = sorted(output_dirs.keys())
