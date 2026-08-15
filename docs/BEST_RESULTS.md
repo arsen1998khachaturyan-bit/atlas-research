@@ -1414,6 +1414,33 @@ untested hypothesis, not a confirmed finding.
 > mechanism proposed to explain it is corrected here. See `docs/
 > RESEARCH_LOG.md` Experiment 31 for the full result and reasoning.
 
+> **⚠⚠ Second update, after Experiment 32 (corpus-diversity test): the
+> "corpus diversity" candidate raised in the update above is ALSO
+> refuted, and the two very different corpora converge to nearly the
+> same answer.** A substantially more diverse self-authored corpus (ten
+> topics, six grammatical shapes, vs. Experiment 31's one topic and one
+> shape) was fine-tuned into gpt2 at the same two step counts (20, 500)
+> for direct comparison. At 20 steps, diversity clearly mattered — every
+> achievable ratio matched base gpt2 exactly (late:early ratio 0.285 vs.
+> base gpt2's 0.29), unlike the narrow corpus's already-shifted 0.20. But
+> at 500 steps the two corpora converged to nearly identical ratios
+> (diverse: 0.071, narrow: 0.070) despite training on completely
+> different text and the diverse corpus's loss dropping much further
+> (0.71 vs. 1.42). **Neither "how long" nor "how diverse" explains the
+> magnitude within the 20–500 step range tested.** Both sweeps show the
+> same shape: a fast initial move away from base gpt2 that deepens with
+> more steps, always in the *early-dominant* direction — the opposite of
+> where distilgpt2/DialoGPT-small/gpt2-imdb ended up. The best remaining
+> hypothesis, still untested: 500 steps (~2,000 examples) may simply be
+> too small a budget to reach the regime the derived models' real
+> training occupies, and the true relationship may be non-monotonic (an
+> initial dip, then eventually a much larger rise past parity into
+> late-dominance at far greater scale) rather than either monotonic story
+> tested so far. The underlying five-model sign split remains untouched;
+> two specific magnitude mechanisms are now ruled out in this range, and
+> a third, more speculative one is proposed. See `docs/RESEARCH_LOG.md`
+> Experiment 32 for the full result.
+
 ---
 
 ## Explicitly not yet claimed

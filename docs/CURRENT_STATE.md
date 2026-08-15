@@ -472,12 +472,33 @@ in Experiment 30 was wrong. Survived a fifth container restart with zero
 lost compute (the finished half of the result was already saved to disk
 before the restart hit).
 
-See `docs/RESEARCH_LOG.md` Experiments 18–31 and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (testing the
-corpus-diversity hypothesis directly by fine-tuning on real natural-
-language text instead of the narrow template corpus, investigating why
-Stage C-lite's from-scratch Transformer diverges from real ones, or
-folding all of this into the synthesis artifact).
+**Experiment 32 (corpus-diversity test, completed) — the diversity
+hypothesis is ALSO refuted, and the two very different corpora converge
+to nearly the same answer.** Built a substantially more diverse
+self-authored corpus (`atlas_nn/stage_c_real/diverse_corpus.py` — ten
+unrelated topics, six grammatical shapes, vs. Experiment 31's one topic
+and one shape) and fine-tuned gpt2 at the same two step counts (20, 500)
+for direct comparison. At 20 steps diversity clearly mattered — every
+achievable ratio matched base gpt2 exactly (0.285 vs. 0.29), unlike the
+narrow corpus's already-shifted 0.20. But at 500 steps the two corpora
+converged to nearly identical ratios (diverse: 0.071, narrow: 0.070)
+despite completely different text and very different training-loss
+trajectories (0.71 vs. 1.42). Neither duration (Experiment 31) nor
+diversity (this experiment) explains the magnitude within the 20–500
+step range tested — both refuted, both corrected visibly in place in
+`docs/BEST_RESULTS.md` (⚠ then ⚠⚠). Best remaining hypothesis, still
+untested: 500 steps may be far too small a budget relative to what the
+derived models' real training involved, and the true relationship may
+be non-monotonic (an early dip, then eventually a larger rise past
+parity) rather than either monotonic story tested so far. The
+underlying five-model, zero-exception *sign* split from Experiments
+21–30 remains untouched by both refutations.
+
+See `docs/RESEARCH_LOG.md` Experiments 18–32 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (scoping a much
+larger fine-tuning-intensity sweep to test the non-monotonic hypothesis,
+investigating why Stage C-lite's from-scratch Transformer diverges from
+real ones, or folding Experiments 31–32 into the synthesis artifact).
 
 ### Design constraints adopted for Track B
 

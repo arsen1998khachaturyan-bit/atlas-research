@@ -2872,3 +2872,88 @@ extremes and wasn't run to conserve compute). Establishes duration alone
 (on this corpus) is not the mechanism; does not establish what is.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 32 — Does corpus diversity explain the magnitude instead? Also refuted, and the two corpora converge to nearly the same answer
+
+**Context.** Experiment 31 refuted "fine-tuning duration alone" and
+proposed corpus diversity/naturalness as the better-supported
+alternative: its narrow, single-domain, single-grammatical-shape corpus
+might have been the real reason the late:early ratio fell instead of
+rising. This experiment tests that directly, holding everything else
+from Experiment 31 fixed (same base model gpt2, same two step counts 20
+and 500, same training hyperparameters) and swapping in a substantially
+more diverse self-authored corpus.
+
+**Corpus built.** `atlas_nn/stage_c_real/diverse_corpus.py` — ten
+unrelated topics (weather, travel, food, technology, nature, work,
+family, science, sports, art), each with its own vocabulary, and six
+grammatical shapes per topic (declarative past/present, questions,
+subordinate clauses) rather than Experiment 31's one topic and one
+shape. Still fully self-authored (no external dataset, same licensing
+rationale as every other text in this project). 1,504 unique generated
+sentences vs. Experiment 31's much smaller effective vocabulary.
+
+**Result 1 — at light fine-tuning (20 steps), diversity clearly
+matters.** Every single achievable ratio at 20 steps on the diverse
+corpus is *bit-for-bit identical* to base gpt2's own numbers (384.0,
+6.34, 6.34, 96.0, 63.78, 10.0 across all six tested layers) — 20 steps
+on a diverse corpus left the model indistinguishable from the untouched
+base model on this metric. Experiment 31's narrow corpus, at the same
+20 steps, had already shifted block 11's `attn.c_proj` from 96.0 down to
+48.0. Late:early ratio: diverse corpus 0.285 (vs. base gpt2's 0.29,
+essentially unchanged) vs. narrow corpus's 0.20 at the same step count.
+
+**Result 2 (the decisive one) — at 500 steps, the two corpora converge
+to nearly the same answer, refuting corpus diversity as a sufficient
+explanation too.**
+
+| condition | block 0 mean gain | block 11 mean gain | ratio (late:early) |
+|---|---|---|---|
+| base gpt2 | 24.79× | 7.07× | 0.29 |
+| narrow corpus, 20 steps | 24.79× | 5.07× | 0.20 |
+| narrow corpus, 500 steps | 24.79× | 1.75× | 0.07 |
+| diverse corpus, 20 steps | 24.79× | 7.07× | 0.285 |
+| **diverse corpus, 500 steps** | **24.79×** | **1.75×** | **0.071** |
+
+The diverse corpus's 500-step ratio (0.071) is *statistically
+indistinguishable* from the narrow corpus's own 500-step ratio (0.070)
+— both converge to essentially the same value despite training on
+completely different text (ten topics vs. one, six grammatical shapes
+vs. one), and despite the diverse corpus's training loss dropping much
+further (0.71 vs. 1.42 at 500 steps, from Experiments 31/32's logs) —
+i.e. the diverse corpus was measurably easier for the model to fit, yet
+this had no effect on the depth-gradient outcome. **Corpus diversity, at
+least across this range of fine-tuning intensity, is not the
+explanation either.**
+
+**What both refutations together suggest.** Neither "how long" nor "how
+diverse" explains the magnitude within the 20–500 step range tested.
+Both controlled sweeps show the same qualitative shape: a fast initial
+move away from base gpt2's pattern (0.29 → ~0.2–0.29 by 20 steps) that
+keeps deepening through 500 steps (→ ~0.07), always in the *same*
+direction — more early-dominant than base gpt2, the opposite of where
+distilgpt2/DialoGPT-small/gpt2-imdb ended up (late-dominant, ratios
+2.73–28.6). One plausible reading, offered as a hypothesis and not yet
+tested: 500 steps (roughly 2,000 examples seen) may simply be too small
+a fine-tuning budget to reach the regime where the derived models'
+checkpoints actually sit — their real training (a full distillation run,
+or fine-tuning on a large dialogue/review corpus for presumably many
+more steps than 500) may occupy a completely different, much later part
+of a trajectory that this experiment only sampled the very start of. If
+so, the relationship between training amount and the late:early ratio
+would be **non-monotonic** — an initial dip below base gpt2's own ratio,
+followed eventually by a much larger rise past 1.0 into late-dominance —
+rather than either of the two monotonic stories tested and refuted so
+far. This is speculative; the experiment that would test it (checkpoints
+at 10×–1000× more steps) has not been run.
+
+**Scope of the claim.** One base model, two corpora, two step counts
+each (20, 500) — a narrow range of the training-intensity axis. Refutes
+"duration alone" (Experiment 31) and "diversity alone" (this experiment)
+as *sufficient* explanations within that range; does not rule out either
+mattering at a much larger scale, and does not identify what does
+explain the derived models' magnitude.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
