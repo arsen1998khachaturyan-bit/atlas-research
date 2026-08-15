@@ -47,6 +47,9 @@ BUDGET_SEARCH_BLOCKS_OVERRIDE = {
     "gpt2-medium": (0, 23),
     "microsoft/DialoGPT-small": (0, 11),
     "lvwerra/gpt2-imdb": (0, 11),
+    "results/finetune_ckpts/gpt2_ft_steps20": (0, 11),
+    "results/finetune_ckpts/gpt2_ft_steps100": (0, 11),
+    "results/finetune_ckpts/gpt2_ft_steps500": (0, 11),
 }
 
 
