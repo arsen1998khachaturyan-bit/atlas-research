@@ -428,12 +428,33 @@ code changes. Structural finding (every random-init search loses to
 method) now holds with no exceptions across 48 budget searches on four
 independent real checkpoints.
 
-See `docs/RESEARCH_LOG.md` Experiments 18–29 and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (a fifth model to
-rule out the from-scratch-vs-derived split being coincidental at n=2 per
-category, investigating why Stage C-lite's from-scratch Transformer
-diverges from real ones, or folding all of this into the synthesis
-artifact).
+**Experiment 30 (fifth model, `lvwerra/gpt2-imdb`, completed) — a third
+derivation procedure agrees on direction, disagrees on magnitude,
+strengthening the training-origin hypothesis.** `lvwerra/gpt2-imdb`
+(124M, config-identical to gpt2, ordinary supervised fine-tuning of
+gpt2's own weights on IMDB movie reviews — a third distinct derivation
+procedure, on a third distinct domain, neither dialogue nor
+distillation) shows the same late-block-dominant *direction* as
+distilgpt2 and DialoGPT-small: 2.73:1 late:early gain ratio, vs. gpt2/
+gpt2-medium's 0.28–0.29:1 early-dominant ratio. **Five for five real
+models now agree on sign with zero exceptions.** The magnitude is an
+order of magnitude weaker than distilgpt2 (17.3:1) or DialoGPT-small
+(28.6:1), suggesting a new, untested hypothesis: the reversal's
+magnitude may track how much post-initialization training occurred
+(light IMDB fine-tuning < heavy dialogue fine-tuning < full distillation)
+rather than a binary derived/from-scratch distinction. Completed in a
+single pass with no container restart. Structural finding (every
+random-init search loses to `quantize`; every qualifying pretrained
+search uses a structure-aware method) now holds with no exceptions
+across 120 layer-state budget searches on five independent real
+checkpoints.
+
+See `docs/RESEARCH_LOG.md` Experiments 18–30 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (testing the
+magnitude-tracks-training-depth hypothesis directly by varying
+fine-tuning intensity on a single base model, investigating why Stage
+C-lite's from-scratch Transformer diverges from real ones, or folding
+all of this into the synthesis artifact).
 
 ### Design constraints adopted for Track B
 

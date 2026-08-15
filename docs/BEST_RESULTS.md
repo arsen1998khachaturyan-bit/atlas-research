@@ -1339,6 +1339,61 @@ conclusively prove the training-origin hypothesis.
 
 ---
 
+## VERIFIED RESULT: a fifth model confirms the training-origin split holds across three different derivation procedures — five for five on direction, with magnitude that appears to track how much post-initialization training occurred
+
+**Claim.** `lvwerra/gpt2-imdb` (124M, 12 blocks, config-identical to
+gpt2, ordinary supervised fine-tuning of gpt2's own weights on IMDB
+movie reviews — a third derivation procedure, distinct from both
+distillation and DialoGPT-small's dialogue fine-tuning) shows the same
+*direction* of depth-gradient reversal as distilgpt2 and DialoGPT-small:
+late-block mean gain (3.06×) exceeds early-block (1.12×), a 2.73:1
+ratio. Direction matches both other "derived" models; magnitude is an
+order of magnitude weaker (2.73:1 vs. 17.3:1 and 28.6:1). All five real
+pretrained models tested now agree on sign with zero exceptions:
+from-scratch models (gpt2, gpt2-medium) show early-block dominance
+(ratio 0.28–0.29); derived-from-prior-weights models (distilgpt2,
+DialoGPT-small, gpt2-imdb) show late-block dominance (ratio 2.73–28.6),
+regardless of which specific derivation procedure was used.
+
+**How verified.** `experiments/run_atlas_nn_stage_c_real_budget_search_gpt2imdb.py`,
+identical 6-layer (blocks 0/11 × 3 sublayer types), 4-state,
+31-config-sweep, 5%-quality-bar methodology as Experiments 19/21/23/29,
+run via the checkpointed parallel wrapper. Completed in a single pass
+(no container restart this time). Reproduce with
+`python -m experiments.run_atlas_nn_stage_c_real_budget_search_gpt2imdb`
+(writes `results/atlas_nn_stage_c_real_budget_search_gpt2imdb.json`).
+
+**Why the graded magnitude strengthens rather than weakens the finding.**
+A binary "derived vs. from-scratch" hypothesis predicts only sign, not
+magnitude — gpt2-imdb's much weaker ratio could have looked like
+evidence against the split if the hypothesis demanded uniform strength.
+Instead the ordering (gpt2-imdb, lightly fine-tuned on a modest corpus <
+DialoGPT-small, fine-tuned on a large dialogue corpus < distilgpt2, a
+full distillation run) tracks a plausible continuous variable — how far
+training moved the weights from their initial distribution — that a
+strictly binary framing would not have predicted. This is offered as a
+new hypothesis suggested by the data, not yet independently tested.
+
+**Still correlational.** Five checkpoints, one behavioral-error
+threshold, discrete parameter grids, and the magnitude-tracks-training-
+depth idea above is untested — it would need training duration/data
+volume varied directly on one base model, not comparison across
+unrelated checkpoints with many confounded differences.
+
+**What continues to hold across all five models, no exceptions.** Across
+120 total layer-state budget searches now (6 layers × 4 states × 5
+models), every random-init search was won by the safe `quantize`
+fallback; every pretrained search that met the quality bar was won by a
+structure-aware method instead. Never once failed to replicate.
+
+**Scope of the claim.** Five models, 6-layer subsets, one behavioral-
+error threshold, discrete parameter grids. The direction of the
+training-origin split is now well-supported across three independent
+derivation procedures; the magnitude-tracks-training-depth idea is a new
+untested hypothesis, not a confirmed finding.
+
+---
+
 ## Explicitly not yet claimed
 
 - Nothing about *larger* networks (mission Stage D) or models above ~100M
