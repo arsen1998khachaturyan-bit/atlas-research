@@ -2721,3 +2721,77 @@ vary fine-tuning duration/data volume directly on a single base model
 rather than comparing across unrelated checkpoints.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 31 — Does the reversal's magnitude track fine-tuning intensity? A direct, single-base-model test
+
+**Context.** Experiment 30 raised an untested lead: three models derived
+from prior weights (distilgpt2, DialoGPT-small, gpt2-imdb) all showed
+late-block dominance, but at strengths (17.3:1, 28.6:1, 2.73:1) that
+plausibly tracked how much post-initialization training each underwent.
+That comparison confounded training depth with everything else that
+differs between three unrelated checkpoints (different base recipes,
+different corpora, different teams). This experiment isolates training
+depth directly: one base model (gpt2), one fixed self-authored corpus
+(reusing `atlas_nn.stage_c_lite.dataset.generate_sentiment_dataset` --
+no external dataset, consistent with the project's existing licensing
+rationale), fine-tuned to three different step counts in one continuous
+500-step run (checkpoints saved at 20/100/500 steps, so three
+checkpoints cost the same compute as one run to 500 steps).
+
+**Infrastructure built.** `atlas_nn/stage_c_real/finetune.py` -- a
+~70-line training loop (AdamW, standard causal-LM loss via
+`labels=input_ids`) that needed no changes to any downstream
+infrastructure: `atlas_nn.stage_c_real.model`'s `load_pretrained`/
+`load_tokenizer`/`AutoConfig`-based block-count derivation already
+accept a local directory path anywhere they accept a HF Hub model name,
+since `save_pretrained` writes exactly what `from_pretrained` expects.
+Verified with a 3-step sanity run before committing to the full 500-step
+run. Training loss dropped monotonically across the run (2.71 → 1.65 →
+1.42 at steps 20/100/500), confirming real, increasing optimization at
+each checkpoint.
+
+**Result 1 — smoke test, all three checkpoints, provisional only (per
+the project's standing rule that fixed-method smoke-test depth readings
+are not trustworthy alone — established after Experiments 19–21).** Mean
+`relative_logit_error` by block, pretrained state, two representative
+methods:
+
+| method | block | steps=20 | steps=100 | steps=500 |
+|---|---|---|---|---|
+| svd_rank4 | 0 (early) | 0.307 | 0.243 | 0.248 |
+| svd_rank4 | 6 (middle) | 0.056 | 0.047 | 0.035 |
+| svd_rank4 | 11 (late) | 0.180 | 0.190 | 0.186 |
+| atlas_block_dict | 0 (early) | 0.0062 | 0.0063 | 0.0064 |
+| atlas_block_dict | 6 (middle) | 0.0037 | 0.0034 | 0.0031 |
+| atlas_block_dict | 11 (late) | 0.0065 | 0.0062 | 0.0051 |
+
+(Lower = more behaviorally robust to compression, i.e. more compressed
+by training.) All three checkpoints show the middle block as most
+robust under both fixed methods, not a clean early/late split — the same
+smoke-test artifact already flagged in Experiment 29 (`svd_rank4` peaks
+away from the last block on every model tested this way so far), and
+the reason this project never trusts a fixed-method depth reading alone.
+**But there is a consistent, non-contradicting trend**: the middle and
+late blocks get monotonically *more* robust (lower error) as training
+steps increase 20→100→500, while the early block stays flat or drifts
+slightly the other way. Small in absolute size, and not a substitute for
+a real budget search, but not a reason to abandon the hypothesis either.
+
+**Result 2 (decisive, still running as of this writeup).** Budget
+searches launched on the two extreme checkpoints (steps=20 and
+steps=500) — the sharpest test of the hypothesis at roughly two-thirds
+the compute of running all three — via
+`experiments/run_atlas_nn_stage_c_real_budget_search_ft20.py` and
+`..._ft500.py`, identical 6-layer/4-state/31-config/5%-bar methodology
+as every other real-model budget search in this project. The steps=100
+checkpoint's budget search (`..._ft100.py`) is built and ready but held
+back pending these two results, to avoid committing to a third
+multi-hour run before knowing whether the extremes even differ.
+
+**Scope of the claim so far.** Smoke-test evidence only; provisional by
+this project's own standing rule. The decisive result is the budget
+search, not yet complete as of this writeup.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
