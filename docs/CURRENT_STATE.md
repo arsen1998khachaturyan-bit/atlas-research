@@ -514,11 +514,35 @@ matter, recovers the derived models' direction. Marked as a confirmation
 (✅) in the same visible correction thread in `docs/BEST_RESULTS.md`
 that carried the two prior refutations (⚠, ⚠⚠).
 
-See `docs/RESEARCH_LOG.md` Experiments 18–33 and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (delta-rank
-analysis on the fine-tuning-intensity checkpoints — cheap, reuses
-existing data — filling in the trajectory between 500 and 5,000 steps,
-or replicating the reversal on the narrow corpus).
+**Experiment 34 (compression-family predictor, completed) — the central
+finding turned into a small practical tool: recovers ~80% of optimal
+compression at ~23% of the search cost.** Prompted by an explicit
+request to find the fastest legitimate path from "scientific finding" to
+something with direct practical value.
+`atlas_nn/stage_c_real/budget_predictor.py` — pure offline analysis, zero
+new compression sweeps — builds a predictor from depth + training origin
+alone (the Experiments 21–33 finding) via leave-one-model-out
+cross-validation on the 5 real budget-searched models. Recovers **79.6%**
+of the true full-search-optimal aggregate (byte-weighted) compression
+ratio (7.82× vs. 9.83×) while evaluating only **23.0%** of the 31-config
+search space — roughly a 4.3× cut in search cost. Failure modes
+(specific layers with unusually large SVD/codebook outliers the
+depth+origin prior can't see, e.g. DialoGPT-small's late `mlp.c_fc` at
+1% recovery) are identified and quantified, not hidden. A stress test on
+the Experiment 31–33 fine-tuning trajectory found the 5,000-step
+checkpoint (which Experiment 33 showed had crossed into derived-like
+behavior) is better predicted assuming `derived` origin (94.7%) than
+`from_scratch` (88.0%) — a small, secondary cross-check consistent with
+that finding. This is not a new compression algorithm — it reuses the
+same 5 method families used since Stage A — but a demonstrated practical
+use of the project's central finding, with real numbers and honestly
+reported limits.
+
+See `docs/RESEARCH_LOG.md` Experiments 18–34 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (a layer-specific
+second-stage feature targeting the predictor's known failure mode,
+delta-rank analysis on the fine-tuning-intensity checkpoints, or the
+still-open magnitude-mechanism questions from Experiments 30–33).
 
 ### Design constraints adopted for Track B
 

@@ -1463,6 +1463,57 @@ untested hypothesis, not a confirmed finding.
 
 ---
 
+## VERIFIED RESULT: the depth+origin finding predicts the winning compression family well enough to cut search cost ~4x while keeping ~80% of optimal compression
+
+**Claim.** A cheap predictor built directly from this project's central
+finding (Experiments 21–33: compression-family choice depends on layer
+depth and training origin) — leave-one-model-out majority vote over the
+5 real budget-searched models, no new compression sweeps — recovers
+**79.6%** of the true full-search-optimal aggregate compression ratio
+(7.82× vs. 9.83×, byte-weighted across 30 layer-rows) while evaluating
+only **23.0%** of the 31-config search space (~4.3× fewer configs per
+layer). Exact family match: 18/30 (60%). By origin category: from-
+scratch models 74.7% of optimal (n=12); derived models 83.4% (n=18).
+
+**How verified.** `atlas_nn/stage_c_real/budget_predictor.py` +
+`experiments/analyze_budget_predictor.py`, pure offline analysis of
+already-computed budget-search JSONs (distilgpt2, gpt2, gpt2-medium,
+DialoGPT-small, gpt2-imdb) — zero new compression sweeps. Leave-one-
+model-out cross-validation: for each model's layer, predict the family
+using only the *other* models' choices at the same depth/sublayer/origin
+combination. Reproduce with
+`python -m experiments.analyze_budget_predictor` (writes
+`results/atlas_nn_budget_predictor_analysis.json`). 4 unit tests in
+`tests/test_atlas_nn_budget_predictor.py`.
+
+**Where it fails, reported not hidden.** The aggregate 79.6% already
+includes several large misses — most severely `microsoft/DialoGPT-
+small`'s late `mlp.c_fc` (1% of true ratio recovered: predicted
+`quantize` at 8×, true winner `svd` far higher) — all cases where an
+unusually large SVD or codebook outlier on one specific layer wasn't
+anticipated by a predictor that only knows depth and origin category,
+nothing layer-specific beyond that.
+
+**What this is, and is not.** Not a new compression algorithm — reuses
+the same 5 method families used since Stage A. It is evidence that the
+depth/origin finding has a direct, practical use: cutting the compute
+cost of finding a good compression config for a new model by roughly
+4×, with the failure mode identified and quantified. A stress test on
+the fine-tuning-trajectory checkpoints from Experiments 31–33 (where
+"origin" is a continuum, not binary) found the 5,000-step checkpoint —
+the one Experiment 33 showed had crossed into derived-like behavior —
+recovers more of its optimal compression when the predictor assumes
+`derived` origin (94.7%) than `from_scratch` (88.0%), consistent with,
+though not independent proof of, that experiment's finding.
+
+**Scope of the claim.** 5 models, 30 layer-rows, one leave-one-model-out
+split, 2–3 members per origin category — a real small-sample limit on
+how precisely 79.6%/23.0% generalize to an unseen model. The qualitative
+result (a cheap prior recovers most of the value at a fraction of the
+cost, with quantified failure modes) is the finding.
+
+---
+
 ## Explicitly not yet claimed
 
 - Nothing about *larger* networks (mission Stage D) or models above ~100M

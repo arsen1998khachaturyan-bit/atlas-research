@@ -3059,3 +3059,118 @@ in the ranges each was tested, but scale, tested at a scale large
 enough to matter, that recovers the derived-model direction.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 34 — From finding to tool: predicting the best compression family instead of searching for it
+
+**Context.** Prompted by a direct question from the user about how far
+this project is from something with practical (not just scientific)
+value, and an explicit ask to find the fastest legitimate path there.
+Every budget search in this project (Experiments 19–33, ~13 real and
+fine-tuned checkpoints) has evaluated all 31 configs (6 quantize + 7 svd
++ 5 prune + 4 vector_codebook + 9 atlas_block_dict) per layer to find
+the best-at-5%-quality-bar method. Experiments 21–33 established *why*
+the winner varies — layer depth and training origin (from-scratch vs.
+derived-from-prior-weights) predict which family tends to win. This
+experiment tests whether that predictive relationship is strong enough
+to skip most of the search on a *new* model: predict the winning family
+from depth + origin alone, evaluate only that family's configs, and
+measure how much of the true-optimal compression this recovers.
+
+**This is pure offline analysis — zero new compression sweeps.** Every
+number below comes from the 5 real models' budget-search JSONs already
+on disk (`results/atlas_nn_stage_c_real_budget_search*.json` for
+distilgpt2/gpt2/gpt2-medium/DialoGPT-small/gpt2-imdb).
+
+**Method.** `atlas_nn/stage_c_real/budget_predictor.py`. For each of the
+5 models' 6 pretrained-state layer rows (2 depths × 3 sublayer types),
+predict the winning family via leave-one-model-out majority vote: among
+the *other* models sharing the same origin category (from-scratch:
+gpt2, gpt2-medium; derived: distilgpt2, DialoGPT-small, gpt2-imdb), at
+the same depth and sublayer type, pick whichever family won most often;
+ties (and the from-scratch category's single-voter case) fall back to
+`quantize`, the one family this project has verified always meets the
+quality bar. Reproduce with
+`python -m experiments.analyze_budget_predictor` (writes
+`results/atlas_nn_budget_predictor_analysis.json`).
+
+**Result — recovers ~80% of optimal compression at ~23% of the search
+cost.**
+
+| metric | value |
+|---|---|
+| exact family match (30 rows) | 18/30 (60%) |
+| aggregate compression ratio, predictor | 7.82× |
+| aggregate compression ratio, full search (optimal) | 9.83× |
+| **% of optimal aggregate compression recovered** | **79.6%** |
+| mean compute fraction used (vs. full 31-config search) | 23.0% (≈4.3× fewer configs evaluated) |
+
+The aggregate (byte-weighted total storage) number is reported rather
+than an unweighted mean of per-layer ratios, which a single outlier
+layer can distort in either direction — this is the practically
+meaningful figure: compressing this 5-model, 30-layer test set with the
+predictor's choices produces a combined footprint 79.6% as small,
+proportionally, as the true full-search optimum, while evaluating only
+23% as many configs. By origin category: from-scratch models recover
+74.7% of optimal (n=12, only one same-category peer to vote from at
+each slot — a real small-sample caveat); derived models recover 83.4%
+(n=18, up to two peers).
+
+**Where it fails, honestly.** Several misses are large in relative
+terms — `microsoft/DialoGPT-small`'s late `mlp.c_fc` recovers only 1% of
+its true ratio (predicted `quantize`, 8×; true winner `svd`, ~600×+
+territory going by comparable layers), and three other rows recover
+under 15%. These are all cases where the true winner was an
+unusually large SVD or codebook outlier the depth+origin prior didn't
+anticipate — the predictor is not aware of anything about the specific
+layer beyond its depth bucket and the model's origin category, so a
+layer that's unusually compressible for reasons outside those two
+features will be missed. The aggregate number already reflects these
+misses (they pull it down from a naive-looking ~100% on the many exact
+hits to 79.6%); they are not hidden by it.
+
+**Stress test on the fine-tuning trajectory (Experiments 31–33).**
+Applying the *same* predictor (fit only on the 5 real models, which
+have a clean binary origin label) to the six-point fine-tuning
+trajectory — where Experiment 33 established that "origin" is not
+binary but a continuum a model moves along with training scale — using
+each of the two possible origin assumptions:
+
+| assumed origin | mean recovery (unweighted) |
+|---|---|
+| from_scratch, all trajectory checkpoints | 89.3% |
+| derived, all trajectory checkpoints | 73.7% |
+| derived, specifically the 5,000-step checkpoint (the one Experiment 33 showed had crossed into the derived-like regime) | **94.7%** |
+
+The 5,000-step checkpoint is the one point in the trajectory where
+assuming `derived` clearly outperforms assuming `from_scratch` (94.7%
+vs. 88.0%) — consistent with, though not proof of, Experiment 33's
+finding that this checkpoint's depth-gradient has genuinely crossed
+over. This is a small, secondary observation (6 rows), not a new
+verified result on its own, but it is the direction the mechanistic
+story predicts.
+
+**What this is, and is not.** This is not a new compression algorithm —
+it reuses the same 5 method families this project has used since Stage
+A. It is a demonstration that the project's central *finding* (depth
+and training origin predict which compression approach wins) has
+practical value beyond explaining the phenomenon: it can cut the search
+cost for compressing a new model by roughly 4× while keeping most of
+the achievable compression, with the failure mode (large SVD/codebook
+outliers on specific layers) identified and quantified rather than
+hidden. A production use of this idea would run the predicted family
+first, then fall back to a full search only if the quality bar isn't
+comfortably met — a cheap two-tier strategy this analysis doesn't
+implement but directly motivates.
+
+**Scope of the claim.** 5 models, 30 pretrained layer-rows, one
+leave-one-model-out cross-validation, two origin categories with only
+2–3 members each — a real small-sample constraint on how confidently
+the predictor's exact percentages generalize to a model this project
+hasn't seen. The qualitative result (depth+origin alone recovers most
+of the value at a fraction of the cost, with predictable, quantified
+failure modes) is the finding; the exact 79.6%/23% figures are specific
+to this test set.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
