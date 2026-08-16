@@ -52,6 +52,7 @@ BUDGET_SEARCH_BLOCKS_OVERRIDE = {
     "results/finetune_ckpts/gpt2_ft_steps500": (0, 11),
     "results/finetune_ckpts/gpt2_ftdiverse_steps20": (0, 11),
     "results/finetune_ckpts/gpt2_ftdiverse_steps500": (0, 11),
+    "results/finetune_ckpts/gpt2_ftdiverse_steps5000": (0, 11),
 }
 
 
