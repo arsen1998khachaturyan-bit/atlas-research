@@ -16,6 +16,24 @@ dependencies = [
 dev = [
     "pytest>=8.0",
 ]
+# Only needed for atlas_nn Stage B+ (trained-network experiments). Track A
+# and atlas_nn Stage A (synthetic matrices) need only numpy. Prefer
+# installing from the CPU-only index to avoid pulling CUDA packages on
+# machines without a GPU, e.g.:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+stage_b = [
+    "torch>=2.0",
+]
+# Only needed for atlas_nn Stage C (real): a literal pretrained model
+# (distilgpt2) via the HF Hub. Requires huggingface.co to be reachable --
+# blocked by this project's network policy in earlier sessions (see
+# docs/RESEARCH_LOG.md Experiment 8), no longer blocked as of the session
+# that added this dependency group.
+stage_c_real = [
+    "torch>=2.0",
+    "transformers>=4.40",
+    "huggingface_hub>=0.23",
+]
 
 [tool.setuptools.packages.find]
 include = ["atlas*"]

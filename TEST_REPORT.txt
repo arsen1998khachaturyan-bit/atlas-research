@@ -1,13 +1,8 @@
-[32m.[0m[32m.[0m[32m.[0m[32m                                                                      [100%][0m
-[32m[32m[1m3 passed[0m[32m in 0.06s[0m[0m
+71 passed, 1 warning in 188.86s (0:03:08)
 
-Spreadsheet runtime warmup failed during python startup
-Traceback (most recent call last):
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/patches/warm_spreadsheet_runtime_on_startup.py", line 26, in warm_spreadsheet_runtime_on_startup
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 785, in warm_spreadsheet_runtime
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 720, in _warm_feature_flows
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/spreadsheet_warmup.py", line 704, in _warm_collaboration_flows
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/generated/interface/models.py", line 30820, in hydrate_crdt_from_proto
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/remote.py", line 749, in __call__
-  File "/tmp/tmp.yTcnQsZYiA/artifact_tool_v2-2.8.4/artifact_tool/rpc/client.py", line 150, in call
-artifact_tool.rpc.client.RemoteError: hydrateCrdtFromProto requires an empty collaborative document.
+(Full clean run after generalizing
+experiments/run_atlas_nn_stage_c_real_budget_search.py to accept a
+model_name parameter the same way the smoke-test script was generalized,
+for Experiment 21's gpt2 budget search. The one remaining warning
+(PyTorch nested-tensor prototype-API notice in test_atlas_nn_stage_c_lite.py)
+is pre-existing and unrelated to this session's changes.)
