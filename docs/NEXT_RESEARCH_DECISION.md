@@ -1,99 +1,99 @@
 # Next Research Decision
 
-Updated after Experiment 32, which refuted the corpus-diversity
-hypothesis too, alongside Experiment 31's duration hypothesis --
-two clean refutations in a row that narrow the search space for what
-actually drives the depth-gradient reversal's magnitude. Covers Track B
+Updated after Experiment 33, which confirmed the non-monotonic
+fine-tuning-intensity hypothesis: at 5,000 steps the late:early ratio
+reverses past parity (4.04), matching the derived models' direction for
+the first time in this project's controlled sweeps. Covers Track B
 (`atlas_nn`) only.
 
 ## 1. What we learned
 
-**Experiment 31:** fine-tuning gpt2 on a narrow corpus for 20 vs. 500
-steps pushed the late:early ratio further from the derived models'
-pattern (0.29 -> 0.20 -> 0.07), refuting "duration alone."
-
-**Experiment 32 (this round) -- "diversity alone" is refuted too, and
-both corpora converge.** A substantially more diverse corpus (ten
-topics, six grammatical shapes) showed a real difference at light
-training (20 steps: diverse corpus exactly matched base gpt2, 0.285;
-narrow corpus had already shifted to 0.20) -- but at 500 steps, both
-corpora converged to essentially the same ratio (diverse: 0.071, narrow:
-0.070), despite completely different text and very different training
-loss trajectories (0.71 vs 1.42). Neither duration nor diversity, at the
-20-500 step range tested, explains the magnitude. Both sweeps show the
-same shape: fast initial divergence from base gpt2 that deepens with
-more steps, always toward *more* early-dominance -- the opposite
-direction from distilgpt2/DialoGPT-small/gpt2-imdb's late-dominant
+**Experiments 31-32:** neither fine-tuning duration alone (up to 500
+steps) nor corpus diversity alone explains the depth-gradient reversal's
+magnitude -- both converged to nearly the same ratio (~0.07) regardless
+of corpus, always moving further from the derived models' late-dominant
 pattern.
+
+**Experiment 33 (this round) -- the reversal appears at larger scale.**
+Extending the same diverse corpus to 5,000 steps (10x further) produced
+a late:early ratio of 4.04 -- solidly late-dominant, matching
+distilgpt2/DialoGPT-small/gpt2-imdb's direction for the first time. Full
+trajectory: 0.29 (base) -> 0.285 (20 steps) -> 0.071 (500 steps) -> 4.04
+(5,000 steps) -- clearly non-monotonic, a dip followed by a large
+reversal. `transformer.h.0.attn.c_proj`'s achievable ratio, unmoved
+(384x) across every checkpoint tested before this one, finally shifted
+(to 5.28x) -- first sign of genuine widespread disruption at this
+scale, not a late-block-only effect.
 
 ## 2. What failed / remains untested
 
-- Both specific magnitude hypotheses proposed so far (duration in
-  Experiment 30/31, diversity in Experiment 31/32) are refuted within
-  the tested range (20-500 steps). A third, more speculative hypothesis
-  is now the best-supported one: 500 steps may be far too small a
-  fine-tuning budget compared to what distilgpt2 (full distillation),
-  DialoGPT-small (large dialogue corpus), and gpt2-imdb actually
-  underwent -- the true relationship between training amount and the
-  late:early ratio may be non-monotonic (an early dip below base gpt2's
-  own ratio, followed by a much larger eventual rise past parity into
-  late-dominance), not monotonic in either direction as both experiments
-  so far implicitly assumed.
-- Testing the non-monotonic hypothesis would need checkpoints at
-  10x-1000x more steps than Experiment 31/32's sweep (e.g. 5,000 or
-  50,000 steps) -- a substantially larger compute commitment than either
-  prior round, and worth scoping carefully before committing.
-- The underlying five-model, zero-exception *sign* split (from-scratch
-  vs. derived-from-prior-weights) from Experiments 21-30 remains
-  untouched by both refutations and is still the best-supported finding
-  in this thread.
+- This is one 3-point trajectory (20/500/5,000 steps) on one base model
+  and one corpus. The exact shape between 500 and 5,000 steps is
+  unknown -- does the ratio cross 1.0 gradually or sharply? Does it
+  keep rising past 4.04 with more steps, or plateau, or overshoot and
+  fall back? A denser sweep (e.g. 1000/2000/3000/5000/10000) would
+  answer this.
+- Whether the reversal happens at a similar step count on the *narrow*
+  corpus (only tested up to 500 steps in Experiment 31) is untested --
+  if diversity truly doesn't matter (as Experiment 32 suggested at 500
+  steps), the narrow corpus should reverse too, at a similar scale.
+  Worth checking as a replication.
+- Whether this generalizes to a different base model (not just gpt2) or
+  a different downstream task is untested -- one model, one corpus
+  family (even if now two variants), one training recipe.
+- *Why* the reversal happens mechanistically (what changes in the
+  weights between 500 and 5,000 steps that produces late-block
+  compressibility) is completely open -- this experiment establishes
+  *that* it happens, not *why*.
 - *Why* Stage C-lite's small from-scratch Transformer diverges from real
   non-distilled Transformers on delta-rank fraction (Experiment 27) is
-  still unexplained.
+  still unexplained, and now newly relevant: delta-rank analysis on
+  these fine-tuning-intensity checkpoints (cheap, reuses existing
+  compression_gain data per Experiment 24/28's method) could show
+  whether the same rank-based signature that explains real models'
+  magnitude also explains this trajectory's reversal.
 
 ## 3. What worked
 
-- Reusing Experiment 31's exact step counts (20, 500) and training
-  hyperparameters for Experiment 32's diverse-corpus sweep made the two
-  results directly comparable without any normalization -- the
-  convergence at 500 steps is a clean, unconfounded observation because
-  of this.
-- The `finetune_checkpoints()` refactor (optional `corpus` parameter,
-  Experiment 32) required touching only the corpus-generation call site,
-  not the training loop itself -- cheap to extend to a third corpus if
-  the non-monotonic hypothesis is tested next.
-- Two refutations in a row, both stated as visible corrections
-  (`⚠`/`⚠⚠` blockquotes in `docs/BEST_RESULTS.md`) rather than silently
-  revised, continuing this project's standing discipline.
+- Committing to the larger-scale test after two refutations, rather than
+  concluding the magnitude mechanism was simply unexplainable --
+  Experiment 33 is the payoff of treating "duration doesn't work in this
+  range" as underspecified rather than as a dead end.
+- Reusing Experiment 32's exact corpus and continuing to a much larger
+  step count in one script made the trajectory directly comparable
+  point-by-point.
+- The checkpointed parallel budget search infrastructure, unchanged
+  since Experiment 23, scaled to this sixth fine-tuning-derived
+  checkpoint with zero modification.
 
 ## 4. Does the evidence currently support the Atlas hypothesis?
 
-**Yes, for the core effect; the depth-gradient magnitude mechanism is
-now doubly narrowed rather than explained.** The behavioral-robustness /
-compression-gain effect itself is unaffected by either refutation and
-has held on five real pretrained checkpoints with no exceptions. Two
-specific, falsifiable magnitude hypotheses have now been tested and
-ruled out in the 20-500 step range, which is real progress (a smaller
-remaining hypothesis space) even though neither refutation directly
-explains the derived models' magnitude.
+**Yes, and the mechanism picture is now much more complete than at any
+earlier point.** The core behavioral-robustness effect is unaffected and
+has held on every real and self-fine-tuned checkpoint tested. The
+depth-gradient reversal, previously explained only by "training origin"
+(from-scratch vs. derived) as a binary property, now has a first
+concrete account of *how* a model gets from one regime to the other: a
+trajectory over training scale, not a fixed property of its starting
+point. Two specific, cheap-relative-to-the-payoff hypotheses were
+refuted before this one confirmed -- exactly the falsification discipline
+this project has followed throughout.
 
 ## 5. The single most informative next experiment
 
 No single option clearly dominates; in rough priority order:
 
-**(a)** Scope and potentially run a much larger fine-tuning-intensity
-sweep (thousands to tens of thousands of steps) to test the
-non-monotonic hypothesis directly -- this is the most specific
-remaining lead from this thread, but is a substantially bigger compute
-commitment than Experiments 31/32 and should be sized carefully
-(consider a coarser step-count grid, e.g. 500/5,000/50,000, rather than
-a dense sweep) before committing.
+**(a)** Run delta-rank analysis (Experiment 24/28's method, cheap --
+reuses already-computed compression_gain, no new compression sweeps) on
+the three diverse-corpus checkpoints (20/500/5,000 steps) to see if the
+rank-based signature that explains real models' magnitude also tracks
+this trajectory's dip-then-reversal shape. This is the cheapest next
+step and could connect two previously-separate analysis threads.
 
-**(b)** Investigate why Stage C-lite's from-scratch Transformer diverges
-from real non-distilled Transformers on delta-rank fraction specifically
-(carried over from four prior decisions, still untouched).
+**(b)** Fill in the trajectory between 500 and 5,000 steps (e.g. a
+checkpoint at 1,500-2,000 steps) to see whether the ratio crosses 1.0
+gradually or sharply -- narrows exactly where the transition happens.
 
-**(c)** Fold Experiments 31-32 into the project-wide synthesis artifact
-(already includes 18-31; would need one more update for 32) -- safe,
-no-compute-risk, worth doing regardless of which thread is picked up
-next.
+**(c)** Replicate on the narrow corpus at 5,000 steps to check whether
+the reversal is corpus-independent (as Experiment 32's 500-step result
+would predict) or whether diversity matters after all at larger scale.

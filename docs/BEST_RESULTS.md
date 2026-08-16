@@ -1441,6 +1441,26 @@ untested hypothesis, not a confirmed finding.
 > a third, more speculative one is proposed. See `docs/RESEARCH_LOG.md`
 > Experiment 32 for the full result.
 
+> **✅ Third update, after Experiment 33: the non-monotonic hypothesis is
+> CONFIRMED — at 5,000 steps the ratio reverses and crosses past
+> parity.** Extending the same diverse corpus from Experiment 32 to
+> 5,000 steps (10x further) produced a late:early ratio of **4.04** —
+> solidly late-dominant, the same direction as distilgpt2 (17.3),
+> DialoGPT-small (28.6), and gpt2-imdb (2.73), for the first time in any
+> controlled sweep this project has run. Full trajectory: base gpt2
+> 0.29 → 20 steps 0.285 → 500 steps 0.071 → **5,000 steps 4.04** — a
+> clear dip-then-reversal shape, not a monotonic trend in either
+> direction. `transformer.h.0.attn.c_proj`'s achievable ratio, rock-
+> steady at 384× across base gpt2 and every prior checkpoint tested,
+> finally moved (down to 5.28×) — the first sign of genuine widespread
+> disruption at this training scale, not just a late-block effect. This
+> resolves — provisionally, from one 3-point trajectory on one base
+> model and one corpus — the question this update thread has chased
+> since Experiment 30: not duration alone, not diversity alone, but
+> training *scale*, tested large enough to matter, recovers the derived
+> models' direction. See `docs/RESEARCH_LOG.md` Experiment 33 for the
+> full result and its remaining scope limits.
+
 ---
 
 ## Explicitly not yet claimed

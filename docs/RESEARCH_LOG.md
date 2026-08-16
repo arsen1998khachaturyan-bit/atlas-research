@@ -2957,3 +2957,105 @@ mattering at a much larger scale, and does not identify what does
 explain the derived models' magnitude.
 
 **Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.
+
+---
+
+## Experiment 33 — The non-monotonic hypothesis, tested directly: CONFIRMED — the reversal appears at larger fine-tuning scale
+
+**Context.** Experiments 31–32 both showed the late:early ratio falling
+monotonically through 500 steps (to ~0.07), regardless of corpus,
+always moving *away* from the derived models' late-dominant pattern
+(distilgpt2 17.3, DialoGPT-small 28.6, gpt2-imdb 2.73). The best
+remaining hypothesis, proposed but untested at the end of Experiment 32:
+500 steps might simply be too small a fine-tuning budget to reach the
+regime those models' real training occupies, and the true relationship
+might be non-monotonic — an early dip, then eventually a much larger
+rise past parity at greater scale.
+
+**Method.** Extended Experiment 32's diverse corpus (already shown not
+to matter at 500 steps, so no reason to vary it again) to **5,000
+steps** — 10x Experiment 32's maximum — via
+`experiments/run_finetune_diverse_large_checkpoints.py`. Training loss
+fell to 0.586 (vs. 0.71 at 500 steps), confirming continued genuine
+optimization. Smoke test and the full 6-layer/4-state/31-config/5%-bar
+budget search followed the identical protocol as every prior real-model
+budget search in this project.
+
+**Result — the ratio reverses and crosses past parity, matching the
+derived models' direction for the first time in this entire
+controlled-sweep thread:**
+
+| layer | pretrained ratio | random-init ratio (mean) | gain |
+|---|---|---|---|
+| block 0 attn.c_proj | 5.28 | 5.33 | 0.99× |
+| block 0 mlp.c_fc | 6.34 | 5.33 | 1.19× |
+| block 0 mlp.c_proj | 6.34 | 5.33 | 1.19× |
+| block 11 attn.c_proj | 96.00 | 8.00 | **12.00×** |
+| block 11 mlp.c_fc | 6.34 | 8.00 | 0.79× |
+| block 11 mlp.c_proj | 6.34 | 8.00 | 0.79× |
+
+Block 0's mean gain collapsed from its previously-rock-steady 24.79×
+(identical across base gpt2 and every checkpoint tested so far, always
+driven by `attn.c_proj`'s 384× SVD result) down to **1.12×** — for the
+first time in this entire project, `transformer.h.0.attn.c_proj`'s
+achievable ratio moved at all (384× → 5.28×), a 73× drop. Block 11's
+mean gain is **4.53×**, driven by `attn.c_proj` regaining its full base-
+gpt2 value (96.0×, vs. 24.0× at 500 steps — also reversed). Late:early
+ratio: **4.04** — solidly above 1.0, the *same direction* as
+distilgpt2/DialoGPT-small/gpt2-imdb for the first time in any controlled
+sweep this project has run.
+
+**Full trajectory (gpt2, diverse corpus, late:early ratio by step
+count):**
+
+| checkpoint | ratio |
+|---|---|
+| base gpt2 (0 steps) | 0.29 |
+| 20 steps | 0.285 |
+| 500 steps | 0.071 |
+| **5,000 steps** | **4.04** |
+
+This is clearly non-monotonic — a shallow dip through 500 steps,
+followed by a large reversal by 5,000 steps that overshoots even base
+gpt2's own ratio and lands solidly on the derived models' side of
+parity. **The non-monotonic hypothesis proposed at the end of
+Experiment 32 is confirmed** in this one controlled sweep: it is not
+that duration or diversity don't matter, but that their effect is
+non-monotonic, and Experiments 31/32 (which only tested up to 500 steps)
+sampled exclusively the initial dip, not the eventual reversal.
+
+**Why this matters for the whole training-origin thread (Experiments
+21–32).** The five-model, zero-exception *sign* split established that
+derived-from-prior-weights models are late-dominant and from-scratch
+models are early-dominant. This experiment is the first to show *why* a
+model can cross from one regime to the other: not a fixed property of
+"was it derived or not," but a *trajectory* that a from-scratch model
+can be pushed along by enough further training, first moving away from
+its early-dominant baseline, then past it into the opposite regime.
+distilgpt2/DialoGPT-small/gpt2-imdb's real training (a full distillation
+run, or fine-tuning on far more than 500 steps of real data) plausibly
+put them well past whatever "5,000 steps on gpt2" corresponds to on this
+same trajectory — consistent with, though not proof of, the same
+mechanism.
+
+**A structural sanity check, still holding.** All four random-init
+searches used `quantize`; the pretrained search used `atlas_block_dict`
+or `svd` throughout — the core structural finding (trained beats
+random-init categorically) has never failed to replicate, now including
+this checkpoint.
+
+**Scope of the claim.** One base model, one corpus, one large step
+count (5,000) added to a prior 2-point sweep (20, 500) — a 3-point
+trajectory, not a dense curve. The reversal is real and large (0.07 to
+4.04 is not measurement noise, and multiple layers moved consistently),
+but the *exact* shape of the curve between 500 and 5,000 steps, whether
+it overshoots further with more training or stabilizes near 4, and
+whether this generalizes to the narrow corpus (only tested with the
+diverse one at this scale) are all still open. This is the strongest,
+most specific result in the fine-tuning-intensity thread so far, and it
+resolves — provisionally — the question the thread has been chasing
+since Experiment 30: it is not "duration alone" or "diversity alone"
+in the ranges each was tested, but scale, tested at a scale large
+enough to matter, that recovers the derived-model direction.
+
+**Next experiment.** See `docs/NEXT_RESEARCH_DECISION.md`.

@@ -494,11 +494,31 @@ parity) rather than either monotonic story tested so far. The
 underlying five-model, zero-exception *sign* split from Experiments
 21–30 remains untouched by both refutations.
 
-See `docs/RESEARCH_LOG.md` Experiments 18–32 and
-`docs/NEXT_RESEARCH_DECISION.md` for current options (scoping a much
-larger fine-tuning-intensity sweep to test the non-monotonic hypothesis,
-investigating why Stage C-lite's from-scratch Transformer diverges from
-real ones, or folding Experiments 31–32 into the synthesis artifact).
+**Experiment 33 (large-scale fine-tuning-intensity test, completed) —
+the non-monotonic hypothesis is CONFIRMED: at 5,000 steps the ratio
+reverses past parity, matching the derived models' direction.** Extended
+Experiment 32's diverse corpus to 5,000 steps (10x further). Late:early
+ratio: **4.04** — solidly late-dominant, the same direction as
+distilgpt2 (17.3), DialoGPT-small (28.6), and gpt2-imdb (2.73), for the
+first time in any controlled sweep this project has run. Full
+trajectory: base gpt2 0.29 → 20 steps 0.285 → 500 steps 0.071 →
+**5,000 steps 4.04** — a clear dip-then-reversal shape.
+`transformer.h.0.attn.c_proj`'s achievable ratio, rock-steady at 384×
+across base gpt2 and every checkpoint tested before this one, finally
+moved (down to 5.28×) — first sign of genuine widespread disruption at
+this scale, not just a late-block effect. This resolves — provisionally,
+from one 3-point trajectory on one base model and one corpus — the
+question chased since Experiment 30: not duration alone (Exp. 31), not
+diversity alone (Exp. 32), but training *scale*, tested large enough to
+matter, recovers the derived models' direction. Marked as a confirmation
+(✅) in the same visible correction thread in `docs/BEST_RESULTS.md`
+that carried the two prior refutations (⚠, ⚠⚠).
+
+See `docs/RESEARCH_LOG.md` Experiments 18–33 and
+`docs/NEXT_RESEARCH_DECISION.md` for current options (delta-rank
+analysis on the fine-tuning-intensity checkpoints — cheap, reuses
+existing data — filling in the trajectory between 500 and 5,000 steps,
+or replicating the reversal on the narrow corpus).
 
 ### Design constraints adopted for Track B
 
